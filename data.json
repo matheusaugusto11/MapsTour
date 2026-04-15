@@ -1,0 +1,102 @@
+{
+  "tours": {
+    "tour_001": {
+      "id": "tour_001",
+      "name": "Centro Histórico de Aracaju",
+      "description": "Explore os monumentos históricos do centro da capital",
+      "startLocation": {
+        "latitude": -10.9111,
+        "longitude": -37.0707
+      },
+      "duration": "1.5 horas",
+      "difficulty": "Fácil",
+      "pois": [
+        {
+          "id": "poi_001",
+          "name": "Palácio do Governo",
+          "description": "Sede do Poder Executivo Estadual. Construído em 1867, representa a arquitetura neoclássica do século XIX.",
+          "position": {
+            "latitude": -10.9105,
+            "longitude": -37.0710,
+            "altitude": 5
+          },
+          "model3d": "assets/models/palacio.glb",
+          "category": "historico",
+          "imageUrl": "https://via.placeholder.com/300x200?text=Palácio",
+          "facts": [
+            "Construído em 1867",
+            "Estilo Neoclássico",
+            "Patrimônio Histórico do Estado"
+          ]
+        },
+        {
+          "id": "poi_002",
+          "name": "Catedral Metropolitana",
+          "description": "Templo católico de grande importância espiritual e arquitetônica da região.",
+          "position": {
+            "latitude": -10.9115,
+            "longitude": -37.0715,
+            "altitude": 8
+          },
+          "model3d": "assets/models/catedral.glb",
+          "category": "religioso",
+          "imageUrl": "https://via.placeholder.com/300x200?text=Catedral",
+          "facts": [
+            "Fundada em 1855",
+            "Estilo Gótico",
+            "Igreja Matriz da Arquidiocese"
+          ]
+        },
+        {
+          "id": "poi_003",
+          "name": "Museu da Gente Sergipana",
+          "description": "Museu dedicado à história e cultura do povo sergipano.",
+          "position": {
+            "latitude": -10.9125,
+            "longitude": -37.0720,
+            "altitude": 3
+          },
+          "model3d": "assets/models/museu.glb",
+          "category": "cultural",
+          "imageUrl": "https://via.placeholder.com/300x200?text=Museu",
+          "facts": [
+            "Aberto em 1998",
+            "Preserva memória de Sergipe",
+            "Espaço educativo"
+          ]
+        }
+      ]
+    },
+    "tour_002": {
+      "id": "tour_002",
+      "name": "Praias e Natureza",
+      "description": "Descubra as belezas naturais e praias de Sergipe",
+      "startLocation": {
+        "latitude": -10.9500,
+        "longitude": -37.0800
+      },
+      "duration": "2 horas",
+      "difficulty": "Médio",
+      "pois": [
+        {
+          "id": "poi_004",
+          "name": "Praia do Atalaia",
+          "description": "Praia com águas cristalinas e ambiente tranquilo.",
+          "position": {
+            "latitude": -10.9550,
+            "longitude": -37.0850,
+            "altitude": 0
+          },
+          "model3d": "assets/models/praia.glb",
+          "category": "natural",
+          "imageUrl": "https://via.placeholder.com/300x200?text=Praia",
+          "facts": [
+            "Piscina natural",
+            "Ideal para mergulho",
+            "Fauna marinha diversa"
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -1,69 +1,52 @@
-// CONFIGURAÇÃO FIREBASE
-// 
-const firebaseConfig = {
-    apiKey: "AIzaSyAP1QBpty3QW5zlq9pB5sdWGl3H-fswjR4",           // Obtenha do console Firebase
-    authDomain: "mapstour-2e65d.firebaseapp.com",       // Obtenha do console Firebase
-    projectId: "mapstour-2e65d",                        // Obtenha do console Firebase
-    databaseURL: "https://mapstour-2e65d-default-rtdb.firebaseio.com", // Obtenha do console Firebase
-    storageBucket: "mapstour-2e65d.firebasestorage.app"         // Obtenha do console Firebase
-};
+// ============================================
+// MAPS TOUR - APLICAÇÃO PRINCIPAL (SEM BD)
+// ============================================
 
-// Inicializa Firebase
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
+let toursData = null;
+let arjsManager = null;
+let geoManager = null;
+let selectedTourId = 'tour_001';
 
-// 
-// VARIÁVEIS GLOBAIS
-// 
-let arjsManager = null;          // Gerenciador de AR
-let geoManager = null;           // Gerenciador de GPS
-let firebaseSync = null;         // Sincronização Firebase
-const sessionId = generateSessionId();  // ID da sessão
-const userId = generateUserId();        // ID do usuário
+// ============================================
+// 1. CARREGAR DADOS DO JSON
+// ============================================
 
-// 
-// ELEMENTOS DO HTML
-// 
-const mainMenu = document.getElementById('mainMenu');
-const arContainer = document.getElementById('arContainer');
-const arHUD = document.getElementById('arHUD');
-const startARBtn = document.getElementById('startARBtn');
-const exitARBtn = document.getElementById('exitARBtn');
-const selectTourBtn = document.getElementById('selectTourBtn');
-const tourNameEl = document.getElementById('tourName');
-const gpsStatusEl = document.getElementById('gpsStatus');
-const userCountEl = document.getElementById('userCount');
-const nearbyPOIsEl = document.getElementById('nearbyPOIs');
-const poiInfoCard = document.getElementById('poiInfo');
-const tourModal = document.getElementById('tourModal');
-const closeTourModal = document.getElementById('closeTourModal');
-const toursList = document.getElementById('toursList');
+async function loadToursData() {
+    try {
+        log('info', '📂 Carregando dados...');
+        const response = await fetch('data.json');
+        
+        if (!response.ok) {
+            throw new Error(`Erro HTTP: ${response.status}`);
+        }
+        
+        toursData = await response.json();
+        log('success', `✅ Dados carregados: ${Object.keys(toursData.tours).length} tours`);
+        return true;
+    } catch (error) {
+        log('error', `❌ Erro ao carregar dados: ${error.message}`);
+        alert('Erro ao carregar dados dos tours: ' + error.message);
+        return false;
+    }
+}
 
-// 
-// EVENTOS DOS BOTÕES
-// 
+// ============================================
+// 2. INICIALIZAR AR
+// ============================================
 
-// Botão: Iniciar AR
-startARBtn.addEventListener('click', initializeAR);
-
-// Botão: Sair de AR
-exitARBtn.addEventListener('click', exitAR);
-
-// Botão: Escolher Tour
-selectTourBtn.addEventListener('click', showTourModal);
-
-// Botão: Fechar Modal de Tours
-closeTourModal.addEventListener('click', hideTourModal);
-
-// 
-// FUNÇÕES PRINCIPAIS
-// 
-
-// Função para inicializar AR
 async function initializeAR() {
-    console.log('🚀 Iniciando AR.js...');
+    log('info', '🚀 Iniciando AR...');
     
-    // Esconde menu, mostra AR
+    // Carrega dados se não estiverem carregados
+    if (!toursData) {
+        const loaded = await loadToursData();
+        if (!loaded) return;
+    }
+
+    const mainMenu = document.getElementById('mainMenu');
+    const arContainer = document.getElementById('arContainer');
+    const arHUD = document.getElementById('arHUD');
+
     mainMenu.style.display = 'none';
     arContainer.style.display = 'block';
     arHUD.style.display = 'flex';
@@ -79,210 +62,229 @@ async function initializeAR() {
             return;
         }
 
-        console.log('✅ AR.js pronto');
-
-        // 2. Inicializa Geolocalização
+        // 2. Inicializa GPS
         geoManager = new GeoLocationManager();
         try {
             await geoManager.startWatching();
-            console.log('✅ GPS pronto');
         } catch (error) {
-            alert('⚠️ Geolocalização não disponível: ' + error.message);
+            log('warning', `⚠️ GPS não disponível: ${error.message}`);
         }
 
-        // 3. Inicializa Firebase Sync
-        firebaseSync = new FirebaseSync(db, sessionId, userId);
-        firebaseSync.startPublishingPosition(geoManager);
-        console.log('✅ Firebase pronto');
+        // 3. Carrega tour selecionado
+        const tourData = toursData.tours[selectedTourId];
+        if (!tourData) {
+            alert('❌ Tour não encontrado');
+            exitAR();
+            return;
+        }
 
-        // 4. Escolhe o tour (por agora, sempre tour_001)
-        const tourId = 'tour_001';
+        document.getElementById('tourName').textContent = `Tour: ${tourData.name}`;
 
-        // 5. Escuta POIs (mudanças em tempo real)
-        firebaseSync.listenToPOIs(tourId, (pois) => {
-            console.log(`📍 ${pois.length} POIs carregados`);
+        // 4. Carrega POIs
+        loadPOIs(tourData.pois);
 
-            if (geoManager.getCurrentPosition()) {
-                // Filtra POIs próximos (500 metros)
-                const nearbyPOIs = geoManager.getNearbyPOIs(pois, 500);
-                
-                // Renderiza POIs próximos
-                for (const poi of nearbyPOIs) {
-                    if (!arjsManager.poiModels.has(poi.id)) {
-                        if (poi.model3d) {
-                            arjsManager.addPOIAtLocation(poi.id, poi.model3d, 1.0);
-                        }
-                    }
-                }
-
-                // Atualiza lista de POIs próximos na UI
-                updateNearbyPOIsList(nearbyPOIs);
-            }
+        // 5. Atualiza status
+        updateGPSStatus();
+        geoManager.onPositionChange(() => {
+            updateGPSStatus();
+            loadPOIs(tourData.pois);
         });
 
-        // 6. Escuta informações do tour
-        firebaseSync.listenToTour(tourId, (tourData) => {
-            tourNameEl.textContent = `Tour: ${tourData.name}`;
-        });
-
-        // 7. Escuta outros usuários
-        firebaseSync.listenToUsers((users) => {
-            const totalUsers = Object.keys(users).length + 1; // +1 para o usuário atual
-            userCountEl.textContent = `👥 ${totalUsers} usuários`;
-
-            // Renderiza avatares de outros usuários
-            Object.entries(users).forEach(([uid, userData]) => {
-                if (userData.position) {
-                    let avatar = arjsManager.userAvatars.get(uid);
-                    if (!avatar) {
-                        avatar = arjsManager.addUserAvatar(uid);
-                    }
-
-                    // Posiciona o avatar
-                    const currentPos = geoManager.getCurrentPosition();
-                    if (currentPos) {
-                        // Calcula distância entre usuários
-                        const distance = GeoLocationManager.calculateDistance(
-                            currentPos.latitude,
-                            currentPos.longitude,
-                            userData.position.latitude,
-                            userData.position.longitude
-                        );
-
-                        // Posiciona avatar baseado na distância (simplificado)
-                        arjsManager.updateUserPosition(uid, 0, 0, -(distance / 100));
-                    }
-                }
-            });
-        });
-
-        // 8. Atualiza GPS na interface
-        geoManager.onPositionChange((position) => {
-            gpsStatusEl.textContent = 
-                `📍 ${position.latitude.toFixed(4)}, ${position.longitude.toFixed(4)}`;
-        });
-
-        console.log('✅ AR iniciado com sucesso!');
+        log('success', '✅ AR iniciado com sucesso');
 
     } catch (error) {
-        console.error('❌ Erro geral:', error);
+        log('error', `❌ Erro ao inicializar AR: ${error.message}`);
         alert('Erro: ' + error.message);
         exitAR();
     }
 }
 
-// Função para sair do AR
-async function exitAR() {
-    console.log('🔚 Encerrando AR...');
+// ============================================
+// 3. CARREGAR POIs
+// ============================================
 
-    // Para sincronização com Firebase
-    if (firebaseSync) {
-        firebaseSync.unsubscribeAll();
-        await firebaseSync.removeUser();
+function loadPOIs(pois) {
+    if (!geoManager.getCurrentPosition()) return;
+
+    const nearbyPOIs = geoManager.getNearbyPOIs(pois, 500);
+
+    // Renderiza modelos 3D
+    for (const poi of nearbyPOIs) {
+        if (!arjsManager.poiModels.has(poi.id) && poi.model3d) {
+            arjsManager.addPOIAtLocation(poi.id, poi.model3d, 0.8);
+        }
     }
 
-    // Para GPS
-    if (geoManager) {
-        geoManager.stopWatching();
-    }
-
-    // Limpa AR.js
-    if (arjsManager) {
-        arjsManager.dispose();
-    }
-
-    // Volta ao menu
-    mainMenu.style.display = 'block';
-    arContainer.style.display = 'none';
-    arHUD.style.display = 'none';
-
-    console.log('✅ AR encerrado');
+    // Atualiza lista de POIs
+    updateNearbyPOIsList(nearbyPOIs);
 }
 
-// Função para atualizar lista de POIs próximos na UI
+// ============================================
+// 4. ATUALIZAR LISTA DE POIs
+// ============================================
+
 function updateNearbyPOIsList(pois) {
-    nearbyPOIsEl.innerHTML = ''; // Limpa a lista anterior
+    const container = document.getElementById('nearbyPOIs');
+    container.innerHTML = '';
 
-    // Mostra até 5 POIs
+    if (pois.length === 0) {
+        container.innerHTML = '<div class="poi-item"><small>Nenhum POI próximo</small></div>';
+        return;
+    }
+
     pois.slice(0, 5).forEach(poi => {
-        if (!geoManager.getCurrentPosition()) return;
-
-        // Calcula distância
-        const distance = GeoLocationManager.calculateDistance(
-            geoManager.getCurrentPosition().latitude,
-            geoManager.getCurrentPosition().longitude,
-            poi.position.latitude,
-            poi.position.longitude
-        );
-
-        // Cria elemento HTML para o POI
         const poiItem = document.createElement('div');
         poiItem.className = 'poi-item';
         poiItem.innerHTML = `
             <strong>${poi.name}</strong>
-            <small>${distance.toFixed(0)}m de distância</small>
+            <span class="distance">${formatDistance(poi.distance)}</span>
+            <small>${poi.description.substring(0, 50)}...</small>
         `;
-
-        // Clique mostra informações do POI
-        poiItem.addEventListener('click', () => {
-            showPOIInfo(poi);
-        });
-
-        nearbyPOIsEl.appendChild(poiItem);
+        
+        poiItem.addEventListener('click', () => showPOIInfo(poi));
+        container.appendChild(poiItem);
     });
 }
 
-// Função para mostrar informações de um POI
+// ============================================
+// 5. MOSTRAR INFO DO POI
+// ============================================
+
 function showPOIInfo(poi) {
+    const poiCard = document.getElementById('poiInfo');
     document.getElementById('poiTitle').textContent = poi.name;
     document.getElementById('poiDesc').textContent = poi.description;
-    poiInfoCard.style.display = 'block';
+    poiCard.style.display = 'block';
+
+    // Auto-hide depois de 5 segundos
+    setTimeout(() => {
+        poiCard.style.display = 'none';
+    }, 5000);
 }
 
-// Função para mostrar modal de seleção de tours
-function showTourModal() {
-    // Carrega tours do Firebase
-    firebaseSync.listenToTour('tour_001', (tourData) => {
-        toursList.innerHTML = `
-            <div class="tour-card">
-                <h4>${tourData.name}</h4>
-                <p>${tourData.description}</p>
-                <button class="btn btn-small" onclick="startTourFromModal('tour_001')">
-                    Escolher
-                </button>
+// ============================================
+// 6. ATUALIZAR STATUS GPS
+// ============================================
+
+function updateGPSStatus() {
+    const gpsEl = document.getElementById('gpsStatus');
+    const gps = geoManager.getCurrentPosition();
+    
+    if (gps) {
+        gpsEl.textContent = `📍 ${gps.latitude.toFixed(4)}, ${gps.longitude.toFixed(4)} (±${gps.accuracy.toFixed(0)}m)`;
+    } else {
+        gpsEl.textContent = '📍 GPS: Aguardando...';
+    }
+}
+
+// ============================================
+// 7. SAIR DO AR
+// ============================================
+
+function exitAR() {
+    if (geoManager) {
+        geoManager.stopWatching();
+    }
+
+    if (arjsManager) {
+        arjsManager.dispose();
+    }
+
+    document.getElementById('mainMenu').style.display = 'block';
+    document.getElementById('arContainer').style.display = 'none';
+    document.getElementById('arHUD').style.display = 'none';
+
+    log('info', '🔚 AR encerrado');
+}
+
+// ============================================
+// 8. LISTAR TOURS
+// ============================================
+
+async function showToursList() {
+    if (!toursData) {
+        await loadToursData();
+    }
+
+    const toursList = document.getElementById('toursList');
+    toursList.innerHTML = '';
+
+    Object.entries(toursData.tours).forEach(([tourId, tourData]) => {
+        const tourCard = document.createElement('div');
+        tourCard.className = 'tour-card';
+        tourCard.innerHTML = `
+            <h4>${tourData.name}</h4>
+            <p>${tourData.description}</p>
+            <div class="tour-meta">
+                <span>⏱️ ${tourData.duration}</span>
+                <span>📊 ${tourData.difficulty}</span>
+                <span>📍 ${tourData.pois.length} POIs</span>
             </div>
+            <button class="btn btn-small" onclick="selectTour('${tourId}')">
+                Iniciar Tour
+            </button>
         `;
+        toursList.appendChild(tourCard);
     });
 
-    tourModal.style.display = 'flex';
+    document.getElementById('tourModal').style.display = 'flex';
 }
 
-// Função para esconder modal
-function hideTourModal() {
-    tourModal.style.display = 'none';
-}
+// ============================================
+// 9. SELECIONAR TOUR
+// ============================================
 
-// Função para iniciar um tour do modal
-window.startTourFromModal = function(tourId) {
-    hideTourModal();
+window.selectTour = function(tourId) {
+    selectedTourId = tourId;
+    document.getElementById('tourModal').style.display = 'none';
     initializeAR();
 };
 
-// 
-// FUNÇÕES AUXILIARES
-// 
+// ============================================
+// 10. EVENT LISTENERS
+// ============================================
 
-// Gera um ID único para a sessão
-function generateSessionId() {
-    return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-}
+document.addEventListener('DOMContentLoaded', () => {
+    log('info', '🎮 Maps Tour inicializado');
 
-// Gera um ID único para o usuário
-function generateUserId() {
-    return `user_${Math.random().toString(36).substr(2, 9)}`;
-}
+    // Botão: Iniciar AR
+    const startARBtn = document.getElementById('startARBtn');
+    if (startARBtn) {
+        startARBtn.addEventListener('click', initializeAR);
+    }
 
-// Log de inicialização
-console.log(`🎮 Maps Tour iniciado`);
-console.log(`Session ID: ${sessionId}`);
-console.log(`User ID: ${userId}`);
+    // Botão: Sair do AR
+    const exitARBtn = document.getElementById('exitARBtn');
+    if (exitARBtn) {
+        exitARBtn.addEventListener('click', exitAR);
+    }
+
+    // Botão: Escolher tour
+    const selectTourBtn = document.getElementById('selectTourBtn');
+    if (selectTourBtn) {
+        selectTourBtn.addEventListener('click', showToursList);
+    }
+
+    // Botão: Fechar modal
+    const closeTourModal = document.getElementById('closeTourModal');
+    if (closeTourModal) {
+        closeTourModal.addEventListener('click', () => {
+            document.getElementById('tourModal').style.display = 'none';
+        });
+    }
+
+    // Carrega dados no background
+    loadToursData();
+});
+
+// ============================================
+// 11. HANDLE ERROS GLOBAIS
+// ============================================
+
+window.addEventListener('error', (event) => {
+    log('error', `❌ Erro global: ${event.message}`);
+});
+
+window.addEventListener('unhandledrejection', (event) => {
+    log('error', `❌ Promise rejeitada: ${event.reason}`);
+});

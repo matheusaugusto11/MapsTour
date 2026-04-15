@@ -1,24 +1,27 @@
-// Classe para gerenciar GPS
+// ============================================
+// MAPS TOUR - GEOLOCALIZAÇÃO
+// ============================================
+
 class GeoLocationManager {
     constructor() {
         this.currentPosition = null;
         this.watchId = null;
-        this.listeners = [];  // Funções que querem saber da mudança de posição
+        this.listeners = [];
+        this.isSupported = supportsGeolocation();
     }
 
-    // Inicia monitoramento contínuo de GPS
+    /**
+     * Inicia monitoramento contínuo de GPS
+     */
     async startWatching() {
         return new Promise((resolve, reject) => {
-            // Verifica se o navegador suporta geolocalização
-            if (!navigator.geolocation) {
-                reject(new Error('❌ Geolocalização não suportada'));
+            if (!this.isSupported) {
+                reject(new Error('Geolocalização não suportada neste navegador'));
                 return;
             }
 
-            // Começa a monitorar a posição
             this.watchId = navigator.geolocation.watchPosition(
                 (position) => {
-                    // Sucesso: posição atualizada
                     this.currentPosition = {
                         latitude: position.coords.latitude,
                         longitude: position.coords.longitude,
@@ -27,20 +30,19 @@ class GeoLocationManager {
                         timestamp: position.timestamp
                     };
 
-                    console.log(`📍 Posição: ${this.currentPosition.latitude}, ${this.currentPosition.longitude}`);
+                    log('success', `📍 GPS: ${this.currentPosition.latitude.toFixed(4)}, ${this.currentPosition.longitude.toFixed(4)}`);
 
-                    // Notifica todas as funções que querem saber da mudança
+                    // Notifica listeners
                     this.listeners.forEach(callback => callback(this.currentPosition));
                 },
                 (error) => {
-                    // Erro ao obter posição
-                    console.error('❌ Erro de geolocalização:', error.message);
+                    log('error', `❌ Erro de geolocalização: ${error.message}`);
                     reject(error);
                 },
                 {
-                    enableHighAccuracy: true,  // Usa GPS em vez de rádio (mais preciso)
-                    timeout: 10000,             // Espera 10 segundos
-                    maximumAge: 0               // Não usa cache
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 0
                 }
             );
 
@@ -48,74 +50,48 @@ class GeoLocationManager {
         });
     }
 
-    // Registra uma função para ser chamada quando posição mudar
-    onPositionChange(callback) {
-        this.listeners.push(callback);
-    }
-
-    // Para de monitorar GPS
+    /**
+     * Para de monitorar GPS
+     */
     stopWatching() {
         if (this.watchId !== null) {
             navigator.geolocation.clearWatch(this.watchId);
             this.watchId = null;
+            log('info', '🛑 GPS monitoramento parado');
         }
     }
 
-    // Retorna a posição atual
+    /**
+     * Registra listener para mudanças de posição
+     */
+    onPositionChange(callback) {
+        this.listeners.push(callback);
+    }
+
+    /**
+     * Retorna posição atual
+     */
     getCurrentPosition() {
         return this.currentPosition;
     }
 
-    // Calcula distância entre dois pontos GPS usando Fórmula de Haversine
-    static calculateDistance(lat1, lon1, lat2, lon2) {
-        const R = 6371; // Raio da Terra em km
-
-        // Converte para radianos (unidade de ângulo)
-        const dLat = (lat2 - lat1) * Math.PI / 180;
-        const dLon = (lon2 - lon1) * Math.PI / 180;
-
-        // Fórmula de Haversine
-        const a = 
-            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-            Math.sin(dLon / 2) * Math.sin(dLon / 2);
-
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        const distance = R * c; // Distância em km
-
-        return distance * 1000; // Retorna em metros
-    }
-
-    // Retorna POIs que estão perto do usuário
-    getNearbyPOIs(pois, maxDistance = 100) {
+    /**
+     * Retorna POIs próximos
+     */
+    getNearbyPOIs(pois, maxDistance = 500) {
         if (!this.currentPosition) return [];
 
-        // Filtra POIs dentro da distância máxima
         return pois
-            .filter(poi => {
-                const distance = GeoLocationManager.calculateDistance(
+            .map(poi => ({
+                ...poi,
+                distance: calculateDistance(
                     this.currentPosition.latitude,
                     this.currentPosition.longitude,
                     poi.position.latitude,
                     poi.position.longitude
-                );
-                return distance < maxDistance;
-            })
-            // Ordena por proximidade (mais perto primeiro)
-            .sort((a, b) => {
-                const distA = GeoLocationManager.calculateDistance(
-                    this.currentPosition.latitude,
-                    this.currentPosition.longitude,
-                    a.position.latitude,
-                    a.position.longitude
-                );
-                const distB = GeoLocationManager.calculateDistance(
-                    this.currentPosition.latitude,
-                    this.currentPosition.longitude,
-                    b.position.latitude,
-                    b.position.longitude
-                );
-                return distA - distB;
-            });
+                )
+            }))
+            .filter(poi => poi.distance <= maxDistance)
+            .sort((a, b) => a.distance - b.distance);
     }
 }

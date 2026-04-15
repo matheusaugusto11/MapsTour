@@ -2,53 +2,72 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🗺️ Maps Tour - AR</title>
-    <link rel="stylesheet" href="assets/styles/style.css">
-    <link rel="stylesheet" href="assets/styles/components.css">
-    <link rel="stylesheet" href="assets/styles/responsive.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#667eea">
+    
+    <title>🗺️ Maps Tour - AR Experience</title>
+    
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="components.css">
+    <link rel="stylesheet" href="responsive.css">
+    
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗺️</text></svg>">
 </head>
 <body>
-    <!-- MENU INICIAL -->
+    <!-- ============================================
+         MENU INICIAL
+         ============================================ -->
     <div id="mainMenu" class="menu-container">
         <h1>🗺️ Maps Tour</h1>
-        <p>Explore com Realidade Aumentada</p>
+        <p>Explore pontos de interesse em Realidade Aumentada</p>
+        
         <button id="startARBtn" class="btn btn-primary">
             📍 Iniciar AR
         </button>
+        
         <button id="selectTourBtn" class="btn btn-secondary">
             📂 Escolher Tour
         </button>
     </div>
 
-    <!-- CONTAINER AR -->
+    <!-- ============================================
+         AR CONTAINER
+         ============================================ -->
     <div id="arContainer" class="ar-container" style="display: none;"></div>
 
-    <!-- HUD AR -->
+    <!-- ============================================
+         AR HUD (Interface)
+         ============================================ -->
     <div id="arHUD" class="ar-hud" style="display: none;">
+        <!-- Cabeçalho -->
         <div class="ar-header">
             <span id="tourName" class="tour-name">Tour: Carregando...</span>
             <button id="exitARBtn" class="btn-icon">✕</button>
         </div>
 
+        <!-- Conteúdo Central -->
         <div class="ar-content">
             <div id="poiInfo" class="poi-card" style="display: none;">
                 <h3 id="poiTitle"></h3>
                 <p id="poiDesc"></p>
-                <button id="learnMoreBtn" class="btn-small">Saber Mais</button>
+                <ul id="poiFacts"></ul>
             </div>
         </div>
 
+        <!-- Rodapé -->
         <div class="ar-footer">
-            <div id="statusInfo" class="status-info">
+            <div class="status-info">
                 <span id="gpsStatus">📍 GPS: Inicializando...</span>
-                <span id="userCount">👥 1 usuário</span>
             </div>
             <div id="nearbyPOIs" class="nearby-pois"></div>
         </div>
     </div>
 
-    <!-- MODAL TOURS -->
+    <!-- ============================================
+         MODAL: SELEÇÃO DE TOURS
+         ============================================ -->
     <div id="tourModal" class="modal" style="display: none;">
         <div class="modal-content">
             <div class="modal-header">
@@ -59,16 +78,30 @@
         </div>
     </div>
 
-    <!-- Scripts Externos (NA ORDEM CORRETA!) -->
+    <!-- ============================================
+         SCRIPTS EXTERNOS (ORDEM IMPORTANTÍSSIMA!)
+         ============================================ -->
+    
+    <!-- Three.js (renderização 3D) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    
+    <!-- AR.js (realidade aumentada) -->
     <script src="https://cdn.jsdelivr.net/npm/ar.js@3.4.5/three.js/ar.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js"></script>
 
-    <!-- Seu JavaScript (SEM type="module") -->
-    <script src="src/arjs-setup.js"></script>
+    <!-- ============================================
+         SCRIPTS LOCAIS (SEU CÓDIGO)
+         ============================================ -->
+    
+    <!-- Utilitários (deve vir primeiro) -->
+    <script src="src/utils.js"></script>
+    
+    <!-- Geolocalização -->
     <script src="src/geoLocation.js"></script>
-    <script src="src/firebaseSync.js"></script>
+    
+    <!-- AR Manager -->
+    <script src="src/arjs-setup.js"></script>
+    
+    <!-- App Principal (deve vir por último) -->
     <script src="src/main.js"></script>
 </body>
 </html>
