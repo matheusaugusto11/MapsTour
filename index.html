@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🗺️ Maps Tour - AR</title>
+    <link rel="stylesheet" href="assets/styles/style.css">
+    <link rel="stylesheet" href="assets/styles/components.css">
+    <link rel="stylesheet" href="assets/styles/responsive.css">
+</head>
+<body>
+    <!-- MENU INICIAL -->
+    <div id="mainMenu" class="menu-container">
+        <h1>🗺️ Maps Tour</h1>
+        <p>Explore com Realidade Aumentada</p>
+        <button id="startARBtn" class="btn btn-primary">
+            📍 Iniciar AR
+        </button>
+        <button id="selectTourBtn" class="btn btn-secondary">
+            📂 Escolher Tour
+        </button>
+    </div>
+
+    <!-- CONTAINER AR (Three.js renderiza aqui) -->
+    <div id="arContainer" class="ar-container" style="display: none;"></div>
+
+    <!-- HUD (Interface durante AR) -->
+    <div id="arHUD" class="ar-hud" style="display: none;">
+        <div class="ar-header">
+            <span id="tourName" class="tour-name">Tour: Carregando...</span>
+            <button id="exitARBtn" class="btn-icon">✕</button>
+        </div>
+
+        <div class="ar-content">
+            <div id="poiInfo" class="poi-card" style="display: none;">
+                <h3 id="poiTitle"></h3>
+                <p id="poiDesc"></p>
+                <button id="learnMoreBtn" class="btn-small">Saber Mais</button>
+            </div>
+        </div>
+
+        <div class="ar-footer">
+            <div id="statusInfo" class="status-info">
+                <span id="gpsStatus">📍 GPS: Inicializando...</span>
+                <span id="userCount">👥 1 usuário</span>
+            </div>
+            <div id="nearbyPOIs" class="nearby-pois"></div>
+        </div>
+    </div>
+
+    <!-- MODAL: Seleção de Tour -->
+    <div id="tourModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Escolha um Tour</h2>
+                <button id="closeTourModal" class="btn-icon">✕</button>
+            </div>
+            <div id="toursList" class="tours-list"></div>
+        </div>
+    </div>
+
+    <!-- Scripts Externos -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ar.js@3.4.5/three.js/ar.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js"></script>
+
+    <!-- Seu JavaScript -->
+    <script type="module" src="src/main.js"></script>
+</body>
+</html>
