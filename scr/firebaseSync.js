@@ -3,7 +3,7 @@ import { getDatabase, ref, onValue, set, remove, serverTimestamp }
     from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js';
 
 // Classe para sincronizar dados com Firebase
-export class FirebaseSync {
+class FirebaseSync {
     constructor(firebaseDb, sessionId, userId) {
         this.db = firebaseDb;           // Banco de dados
         this.sessionId = sessionId;     // ID da sessão atual

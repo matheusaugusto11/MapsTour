@@ -1,5 +1,5 @@
 // Classe para gerenciar GPS
-export class GeoLocationManager {
+class GeoLocationManager {
     constructor() {
         this.currentPosition = null;
         this.watchId = null;

@@ -1,5 +1,5 @@
 // Classe para gerenciar AR.js
-export class ARJSManager {
+class ARJSManager {
     constructor() {
         this.scene = null;
         this.camera = null;
