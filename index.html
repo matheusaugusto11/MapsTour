@@ -3,8 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="permissions" content="camera, geolocation, accelerometer, magnetometer">
-    <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
     <title>🗺️ Maps Tour - AR</title>
     <link rel="stylesheet" href="assets/styles/style.css">
     <link rel="stylesheet" href="assets/styles/components.css">
@@ -23,10 +21,10 @@
         </button>
     </div>
 
-    <!-- CONTAINER AR (Three.js renderiza aqui) -->
+    <!-- CONTAINER AR -->
     <div id="arContainer" class="ar-container" style="display: none;"></div>
 
-    <!-- HUD (Interface durante AR) -->
+    <!-- HUD AR -->
     <div id="arHUD" class="ar-hud" style="display: none;">
         <div class="ar-header">
             <span id="tourName" class="tour-name">Tour: Carregando...</span>
@@ -50,7 +48,7 @@
         </div>
     </div>
 
-    <!-- MODAL: Seleção de Tour -->
+    <!-- MODAL TOURS -->
     <div id="tourModal" class="modal" style="display: none;">
         <div class="modal-content">
             <div class="modal-header">
@@ -61,13 +59,16 @@
         </div>
     </div>
 
-    <!-- Scripts Externos -->
+    <!-- Scripts Externos (NA ORDEM CORRETA!) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/ar.js@3.4.5/three.js/ar.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js"></script>
 
-    <!-- Seu JavaScript -->
-    <script type="module" src="src/main.js"></script>
+    <!-- Seu JavaScript (SEM type="module") -->
+    <script src="src/arjs-setup.js"></script>
+    <script src="src/geoLocation.js"></script>
+    <script src="src/firebaseSync.js"></script>
+    <script src="src/main.js"></script>
 </body>
 </html>

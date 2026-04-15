@@ -1,13 +1,3 @@
-// Importa as classes que criamos
-import { ARJSManager } from './arjs-setup.js';
-import { GeoLocationManager } from './geoLocation.js';
-import { FirebaseSync } from './firebaseSync.js';
-
-// Importa Firebase
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js';
-import { getDatabase } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js';
-
-// 
 // CONFIGURAÇÃO FIREBASE
 // 
 const firebaseConfig = {

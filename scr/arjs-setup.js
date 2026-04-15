@@ -82,46 +82,47 @@ export class ARJSManager {
 
     // Adiciona um modelo 3D na cena
     addPOIAtLocation(poiId, modelUrl, scale = 1) {
-        try {
-            // Carregador de modelos glTF (formato 3D padrão)
-            const loader = new THREE.GLTFLoader();
+    try {
+        const loader = new THREE.GLTFLoader();
 
-            loader.load(
-                modelUrl,
-                (gltf) => {
-                    // Sucesso: modelo carregado
-                    const model = gltf.scene;
-                    
-                    // Escala do modelo
-                    model.scale.set(scale, scale, scale);
-                    
-                    // Posição inicial (à frente da câmera)
-                    model.position.set(0, 0, -2);
-                    
-                    // Rotação inicial
-                    model.rotation.x = Math.PI / 4;
-                    
-                    // Adiciona à cena
-                    this.scene.add(model);
-                    
-                    // Guarda referência do modelo
-                    this.poiModels.set(poiId, model);
+        loader.load(
+            modelUrl,
+            (gltf) => {
+                const model = gltf.scene;
+                
+                // Escala
+                model.scale.set(scale, scale, scale);
+                
+                // Posição: 2 metros à frente da câmera
+                model.position.set(0, 0, -2);
+                
+                // Rotação leve
+                model.rotation.x = Math.PI / 6; // 30 graus
+                
+                // Adiciona luz ao modelo
+                const light = new THREE.PointLight(0xffffff, 1, 100);
+                light.position.set(5, 5, 5);
+                model.add(light);
+                
+                // Adiciona à cena
+                this.scene.add(model);
+                
+                // Guarda referência
+                this.poiModels.set(poiId, model);
 
-                    console.log(`✅ POI ${poiId} adicionado`);
-                },
-                (progress) => {
-                    // Progresso do carregamento
-                    const percent = (progress.loaded / progress.total) * 100;
-                    console.log(`⏳ Carregando: ${percent.toFixed(0)}%`);
-                },
-                (error) => {
-                    // Erro ao carregar
-                    console.error(`❌ Erro ao carregar ${poiId}:`, error);
-                }
-            );
-        } catch (error) {
-            console.error('Erro ao adicionar POI:', error);
-        }
+                console.log(`✅ POI ${poiId} renderizado com sucesso`);
+            },
+            (progress) => {
+                const percent = (progress.loaded / progress.total) * 100;
+                console.log(`⏳ Carregando modelo: ${percent.toFixed(0)}%`);
+            },
+            (error) => {
+                console.error(`❌ Erro ao carregar ${poiId}:`, error);
+            }
+        );
+      } catch (error) {
+        console.error('Erro ao adicionar POI:', error);
+      }
     }
 
     // Cria avatar para outro usuário
