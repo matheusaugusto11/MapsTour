@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste AR.js</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ar.js@3.4.5/three.js/ar.js"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+        canvas {
+            width: 100%;
+            height: 100vh;
+        }
+        #info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            font-family: Arial, sans-serif;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">
+        <h2>🧪 Teste AR.js</h2>
+        <p>Câmera: <span id="cameraStatus">Carregando...</span></p>
+        <p>Modelo 3D: <span id="modelStatus">Carregando...</span></p>
+    </div>
+
+    <script>
+        console.log('🚀 Teste AR iniciado');
+
+        // Cria cena Three.js
+        const scene = new THREE.Scene();
+        const camera = new THREE.Camera();
+        scene.add(camera);
+
+        // Cria renderer
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        document.body.appendChild(renderer.domElement);
+
+        // Configura AR source (câmera)
+        const arSource = new THREEx.ArToolkitSource({
+            sourceType: 'webcam',
+            sourceWidth: 640,
+            sourceHeight: 480
+        });
+
+        // Espera câmera carregar
+        arSource.ready.promise.then(() => {
+            console.log('✅ Câmera pronta');
+            document.getElementById('cameraStatus').textContent = '✅ Pronta';
+
+            // Configura rastreamento AR
+            const arSession = new THREEx.ArToolkitContext({
+                cameraParametersUrl: 'https://cdn.jsdelivr.net/npm/ar.js@3.4.5/three.js/data/data/camera_para.dat',
+                detectionMode: 'mono',
+                matrixCodeType: '3x3',
+                sourceWidth: arSource.parameters.sourceWidth,
+                sourceHeight: arSource.parameters.sourceHeight
+            });
+
+            // Atualiza câmera
+            arSession.onUpdatedMatrix.addEventListener('arToolkitMatrix', () => {
+                arSession.update(arSource.domElement);
+                camera.projectionMatrix.copy(arSession.getProjectionMatrix());
+            });
+
+            // Carrega modelo 3D
+            const loader = new THREE.GLTFLoader();
+            loader.load(
+                'https://firebasestorage.googleapis.com/v0/b/mapstour-xxxxx.appspot.com/o/models%2Fmonument_001.glb?alt=media',
+                (gltf) => {
+                    console.log('✅ Modelo carregado');
+                    document.getElementById('modelStatus').textContent = '✅ Carregado';
+
+                    const model = gltf.scene;
+                    model.scale.set(0.5, 0.5, 0.5);
+                    model.position.set(0, 0, -2);
+                    scene.add(model);
+                },
+                undefined,
+                (error) => {
+                    console.error('❌ Erro ao carregar modelo:', error);
+                    document.getElementById('modelStatus').textContent = '❌ Erro';
+                }
+            );
+
+            // Loop de renderização
+            function animate() {
+                requestAnimationFrame(animate);
+                if (arSession) {
+                    arSession.update(arSource.domElement);
+                }
+                renderer.render(scene, camera);
+            }
+            animate();
+        }).catch(error => {
+            console.error('❌ Erro de câmera:', error);
+            document.getElementById('cameraStatus').textContent = '❌ Erro';
+        });
+
+        // Responsivo
+        window.addEventListener('resize', () => {
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
