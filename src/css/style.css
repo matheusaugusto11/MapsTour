@@ -1,103 +1,76 @@
-/* Reset browser default styles */
+/* CSS Reset: Resets default browser styles for consistency across devices */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
-/* CSS Custom Properties for colors and typography */
+/* CSS Variables for Theme: Define reusable color and size variables */
 :root {
-  --primary-color: #007bff; /* Modern blue for primary elements */
-  --secondary-color: #6c757d; /* Gray for secondary elements */
-  --background-color: #f8f9fa; /* Light gray background for mobile-friendly theme */
-  --text-color: #212529; /* Dark text for readability */
-  --accent-color: #28a745; /* Green for accents */
-  --font-family: 'Roboto', sans-serif; /* Modern sans-serif font */
-  --font-size-base: 16px;
-  --line-height: 1.5;
+  --primary-color: #007bff;
+  --secondary-color: #6c757d;
+  --background-color: rgba(0, 0, 0, 0.7);
+  --text-color: #ffffff;
+  --button-padding: 10px 20px;
+  --border-radius: 5px;
+  --transition-duration: 0.3s;
 }
 
-/* Base styles for html and body */
-html {
-  font-size: var(--font-size-base);
-  line-height: var(--line-height);
-  font-family: var(--font-family);
-  color: var(--text-color);
-  background-color: var(--background-color);
-}
-
+/* A-Frame Scene Styles: Ensures the AR scene takes up the full screen */
 body {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  overflow-x: hidden; /* Prevent horizontal scroll on mobile */
-}
-
-/* Styles for AR container filling the entire screen */
-#ar-container {
-  position: fixed;
-  top: 0;
-  left: 0;
   width: 100vw;
   height: 100vh;
-  z-index: 1;
-  background-color: var(--background-color);
-}
-
-/* Styles for control elements */
-.control-panel {
-  position: absolute;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  background-color: rgba(255, 255, 255, 0.9);
-  padding: 10px;
-  border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  z-index: 10;
+  overflow: hidden;
+  font-family: Arial, sans-serif;
   display: flex;
-  gap: 10px;
+  flex-direction: column;
 }
 
-.control-button {
+/* Info Panel Styles: Positioned at the bottom with semi-transparent background, using flexbox for layout */
+#info-panel {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background-color: var(--background-color);
+  color: var(--text-color);
+  padding: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 10;
+  transition: all var(--transition-duration) ease;
+}
+
+/* Control Buttons Styles: Styles for start-tour and stop-tour buttons */
+#start-tour, #stop-tour {
   background-color: var(--primary-color);
-  color: white;
+  color: var(--text-color);
   border: none;
-  padding: 8px 12px;
-  border-radius: 4px;
+  padding: var(--button-padding);
+  border-radius: var(--border-radius);
   cursor: pointer;
-  font-size: 14px;
-  transition: background-color 0.3s ease;
+  font-size: 16px;
+  transition: background-color var(--transition-duration) ease;
 }
 
-.control-button:hover {
-  background-color: var(--accent-color);
+#start-tour:hover, #stop-tour:hover {
+  background-color: var(--secondary-color);
 }
 
-/* Base responsive styles */
+/* Mobile Full-Screen Readability: Adjusts font sizes and padding for better readability on mobile devices */
 @media (max-width: 768px) {
-  .control-panel {
-    bottom: 10px;
-    padding: 8px;
-    gap: 8px;
+  #info-panel {
+    padding: 15px;
+    font-size: 14px;
   }
-
-  .control-button {
-    padding: 6px 10px;
-    font-size: 12px;
+  #start-tour, #stop-tour {
+    font-size: 14px;
+    padding: 8px 16px;
   }
 }
 
-@media (max-width: 480px) {
-  .control-panel {
-    flex-direction: column;
-    align-items: center;
-  }
-
-  .control-button {
-    width: 100%;
-    max-width: 150px;
-  }
+/* Smooth Transitions: Applied globally for smooth animations */
+* {
+  transition: all var(--transition-duration) ease;
 }

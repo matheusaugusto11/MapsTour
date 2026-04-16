@@ -4,40 +4,27 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AR.js Maps Tour</title>
-    <!-- Link to CSS files -->
-    <link rel="stylesheet" href="src\css\style.css">
-    <link rel="stylesheet" href="src\css\components.css">
-    <link rel="stylesheet" href="src\css\responsive.css">
-    <!-- AR.js library via CDN -->
-    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+    <!-- CDN link for A-Frame v1.3.0 -->
+    <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
+    <!-- CDN link for AR.js with GPS support -->
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
-    <!-- Three.js dependency for AR.js -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
-    <!-- Main container for AR experience -->
-    <div id="ar-container">
-        <!-- AR camera element -->
-        <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;">
-            <a-camera gps-camera rotation-reader></a-camera>
-            <!-- Placeholder for AR markers or GPS-based POIs -->
-            <a-entity id="poi-container"></a-entity>
-        </a-scene>
-    </div>
-    
-    <!-- UI elements for displaying POI information -->
-    <div id="poi-info" class="hidden">
+    <!-- Info panel to display POI name and description -->
+    <div id="info-panel">
         <h2 id="poi-name">POI Name</h2>
         <p id="poi-description">POI Description</p>
     </div>
-    
-    <!-- Controls for the AR experience -->
+    <!-- Control buttons for starting and stopping the tour -->
     <div id="controls">
-        <button id="start-btn">Start Tour</button>
-        <button id="stop-btn" class="hidden">Stop Tour</button>
+        <button id="start-tour">Start Tour</button>
+        <button id="stop-tour">Stop Tour</button>
     </div>
-    
-    <!-- Link to JavaScript files -->
+    <!-- A-Frame scene with GPS camera mode for AR -->
+    <a-scene gps-camera>
+        <!-- 3D models will be loaded dynamically here from external URLs (.glb/.gltf) via data.js -->
+    </a-scene>
+    <!-- Load data.js for POI data and main.js for tour logic -->
     <script src="src\js\data.js"></script>
     <script src="src\js\main.js"></script>
 </body>

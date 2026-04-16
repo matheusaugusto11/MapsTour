@@ -1,136 +1,152 @@
-// main.js - AR.js Maps Tour with Multiple POIs
-// This script handles geolocation, POI detection, and UI updates for an AR tour.
-// Assumes data.js is loaded before this script, providing an array 'pois' with POI objects.
-// Each POI object should have properties like: { lat: number, lng: number, name: string, info: string }
+// main.js for AR.js Maps Tour
+// This script assumes data.js is loaded before this file, providing an array 'pois' with POI objects.
+// Each POI object should have properties like: { id, name, lat, lng, modelUrl, description }
 
-// Global variables for state management
-let isTracking = false; // Boolean to track if geolocation is active
-let watchId = null; // ID for the geolocation watch
-let currentPosition = null; // Current user position { lat, lng }
-let detectionRadius = 100; // Radius in meters to detect POIs (adjustable)
-let nearestPOI = null; // The currently nearest POI
+// Global variables
+const RADIUS = 100; // Radius in meters to detect nearby POIs
+const scene = document.querySelector('a-scene');
+const infoPanel = document.getElementById('info-panel');
+const startTourBtn = document.getElementById('start-tour');
+const stopTourBtn = document.getElementById('stop-tour');
+let isTourActive = false;
+let currentPosition = null;
+let nearestPOI = null;
 
-// DOM elements (assuming they exist in the HTML)
-const startBtn = document.getElementById('startBtn');
-const stopBtn = document.getElementById('stopBtn');
-const infoPanel = document.getElementById('infoPanel');
-
-// Function to calculate distance using Haversine formula
-// Haversine formula calculates the great-circle distance between two points on a sphere (Earth)
-function calculateDistance(lat1, lng1, lat2, lng2) {
-    const R = 6371e3; // Earth's radius in meters
-    const φ1 = lat1 * Math.PI / 180; // Convert to radians
-    const φ2 = lat2 * Math.PI / 180;
-    const Δφ = (lat2 - lat1) * Math.PI / 180;
-    const Δλ = (lng2 - lng1) * Math.PI / 180;
-
-    const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-              Math.cos(φ1) * Math.cos(φ2) *
-              Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-    return R * c; // Distance in meters
+// Function to get current GPS position
+function getCurrentPosition() {
+    if (navigator.geolocation) {
+        navigator.geolocation.watchPosition(
+            (position) => {
+                currentPosition = {
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude
+                };
+                console.log('Current position:', currentPosition);
+                updateTour();
+            },
+            (error) => {
+                console.error('Error getting position:', error);
+            },
+            { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 }
+        );
+    } else {
+        console.error('Geolocation is not supported by this browser.');
+    }
 }
 
-// Function to find POIs within the detection radius and the nearest one
-// Iterates over all POIs, calculates distances, and updates nearestPOI
-function findNearbyPOIs() {
-    if (!currentPosition) return; // No position yet
+// Haversine formula to calculate distance between two lat/lng points in meters
+function haversineDistance(lat1, lng1, lat2, lng2) {
+    const R = 6371000; // Earth's radius in meters
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+}
 
-    let closestPOI = null;
-    let minDistance = Infinity;
-    let nearbyPOIs = []; // Array to hold POIs within radius
+// Function to find POIs within the specified radius
+function findNearbyPOIs(position, pois, radius) {
+    return pois.filter(poi => haversineDistance(position.lat, position.lng, poi.lat, poi.lng) <= radius);
+}
 
-    pois.forEach(poi => { // pois is from data.js
-        const distance = calculateDistance(currentPosition.lat, currentPosition.lng, poi.lat, poi.lng);
-        if (distance <= detectionRadius) {
-            nearbyPOIs.push({ ...poi, distance }); // Add distance to POI object
-            if (distance < minDistance) {
-                minDistance = distance;
-                closestPOI = { ...poi, distance };
-            }
+// Function to create A-Frame GLTF models for nearby POIs
+// A-Frame is a web framework for building VR/AR experiences using HTML and JavaScript.
+// It uses entities (like <a-entity>) to represent objects in the 3D scene.
+// The <a-gltf-model> component loads and displays 3D models in GLTF format.
+// GLTF (GL Transmission Format) is a standard for 3D models that includes geometry, materials, animations, etc.
+// When you add <a-gltf-model src="modelUrl"> to an entity, A-Frame automatically:
+// 1. Downloads the GLTF file from the src URL.
+// 2. Parses the GLTF data to extract meshes, materials, and textures.
+// 3. Creates Three.js objects (Three.js is the underlying 3D engine for A-Frame).
+// 4. Renders the 3D model in the scene at the entity's position.
+// The gps-entity-place component positions the entity in the real world based on GPS coordinates.
+// It calculates the relative position from the user's current GPS location.
+function createPOIModels(nearbyPOIs) {
+    // Remove existing POI models
+    const existingModels = scene.querySelectorAll('[poi-model]');
+    existingModels.forEach(model => model.remove());
+
+    nearbyPOIs.forEach(poi => {
+        // Create a new A-Frame entity for the POI
+        const entity = document.createElement('a-entity');
+        entity.setAttribute('poi-model', ''); // Custom attribute for identification
+        entity.setAttribute('gps-entity-place', `latitude: ${poi.lat}; longitude: ${poi.lng}`);
+        entity.setAttribute('gltf-model', poi.modelUrl);
+        entity.setAttribute('scale', '1 1 1'); // Default scale
+        entity.setAttribute('look-at', '[camera]'); // Make it face the camera
+        // Add click event to show info
+        entity.addEventListener('click', () => updateInfoPanel(poi));
+        scene.appendChild(entity);
+        console.log('Created model for POI:', poi.name);
+    });
+}
+
+// Function to update the info panel with the nearest POI
+function updateInfoPanel(poi) {
+    if (poi) {
+        infoPanel.innerHTML = `
+            <h3>${poi.name}</h3>
+            <p>${poi.description}</p>
+            <p>Distance: ${haversineDistance(currentPosition.lat, currentPosition.lng, poi.lat, poi.lng).toFixed(2)} m</p>
+        `;
+        nearestPOI = poi;
+        console.log('Updated info panel for POI:', poi.name);
+    } else {
+        infoPanel.innerHTML = '<p>No nearby POIs</p>';
+    }
+}
+
+// Function to find the nearest POI
+function findNearestPOI(position, pois) {
+    if (!pois.length) return null;
+    let nearest = pois[0];
+    let minDistance = haversineDistance(position.lat, position.lng, nearest.lat, nearest.lng);
+    pois.forEach(poi => {
+        const dist = haversineDistance(position.lat, position.lng, poi.lat, poi.lng);
+        if (dist < minDistance) {
+            minDistance = dist;
+            nearest = poi;
         }
     });
-
-    nearestPOI = closestPOI;
-    console.log('Nearby POIs:', nearbyPOIs); // Debug: list nearby POIs
-    console.log('Nearest POI:', nearestPOI); // Debug: nearest POI
+    return nearest;
 }
 
-// Function to update the info panel with the nearest POI's information
-// If no POI is near, display a message
-function updateInfoPanel() {
-    if (nearestPOI) {
-        infoPanel.innerHTML = `<h3>${nearestPOI.name}</h3><p>${nearestPOI.info}</p><p>Distance: ${nearestPOI.distance.toFixed(2)} meters</p>`;
-    } else {
-        infoPanel.innerHTML = '<p>No POIs nearby. Keep exploring!</p>';
-    }
-}
+// Main update function called when position changes
+function updateTour() {
+    if (!isTourActive || !currentPosition) return;
 
-// Function to handle successful geolocation position update
-// Updates current position, finds nearby POIs, and refreshes the panel
-function onPositionUpdate(position) {
-    currentPosition = {
-        lat: position.coords.latitude,
-        lng: position.coords.longitude
-    };
-    console.log('Current position:', currentPosition); // Debug: current position
+    const nearbyPOIs = findNearbyPOIs(currentPosition, pois, RADIUS);
+    createPOIModels(nearbyPOIs);
 
-    findNearbyPOIs(); // Check for nearby POIs
-    updateInfoPanel(); // Update the UI
-}
-
-// Function to handle geolocation errors
-// Logs errors to console for debugging
-function onPositionError(error) {
-    console.error('Geolocation error:', error.message); // Debug: error message
-}
-
-// Function to start tracking geolocation
-// Requests permission and starts watching position
-function startTracking() {
-    if (navigator.geolocation) {
-        watchId = navigator.geolocation.watchPosition(onPositionUpdate, onPositionError, {
-            enableHighAccuracy: true, // Use high accuracy for better results
-            timeout: 10000, // Timeout after 10 seconds
-            maximumAge: 0 // Don't use cached positions
-        });
-        isTracking = true;
-        console.log('Tracking started'); // Debug: tracking status
-        startBtn.disabled = true;
-        stopBtn.disabled = false;
-    } else {
-        alert('Geolocation is not supported by this browser.');
-    }
-}
-
-// Function to stop tracking geolocation
-// Clears the watch and resets state
-function stopTracking() {
-    if (watchId) {
-        navigator.geolocation.clearWatch(watchId);
-        watchId = null;
-    }
-    isTracking = false;
-    currentPosition = null;
-    nearestPOI = null;
-    console.log('Tracking stopped'); // Debug: tracking status
-    startBtn.disabled = false;
-    stopBtn.disabled = true;
-    updateInfoPanel(); // Clear the panel
+    const nearest = findNearestPOI(currentPosition, nearbyPOIs);
+    updateInfoPanel(nearest);
 }
 
 // Event listeners for buttons
-// Attach functions to button clicks
-startBtn.addEventListener('click', startTracking);
-stopBtn.addEventListener('click', stopTracking);
-
-// Initialize the app
-// Set initial button states
-function init() {
-    stopBtn.disabled = true; // Start with stop disabled
-    console.log('AR.js Maps Tour initialized'); // Debug: app start
+function startTour() {
+    isTourActive = true;
+    startTourBtn.disabled = true;
+    stopTourBtn.disabled = false;
+    getCurrentPosition();
+    console.log('Tour started');
 }
 
-// Call init when the script loads
-init();
+function stopTour() {
+    isTourActive = false;
+    startTourBtn.disabled = false;
+    stopTourBtn.disabled = true;
+    // Remove all POI models
+    const models = scene.querySelectorAll('[poi-model]');
+    models.forEach(model => model.remove());
+    infoPanel.innerHTML = '<p>Tour stopped</p>';
+    console.log('Tour stopped');
+}
+
+// Initialize event listeners
+startTourBtn.addEventListener('click', startTour);
+stopTourBtn.addEventListener('click', stopTour);
+
+// Initial setup
+console.log('AR.js Maps Tour initialized');
