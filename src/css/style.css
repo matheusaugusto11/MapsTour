@@ -1,157 +1,180 @@
-/* Reset de estilos padrão */
+/* ========================================
+   RESET & VARIABLES
+   ======================================== */
+
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
-/* Variáveis CSS para design system moderno */
 :root {
-  --primary-color: #4a90e2;
-  --secondary-color: #7b68ee;
-  --accent-color: #00d4aa;
-  --text-primary: #333;
-  --text-secondary: #666;
-  --bg-gradient-start: #4a90e2;
-  --bg-gradient-end: #7b68ee;
-  --spacing-small: 8px;
-  --spacing-medium: 16px;
-  --spacing-large: 24px;
-  --font-family: 'Roboto', sans-serif;
-  --font-size-h1: 2.5rem;
-  --font-size-p: 1rem;
-  --font-size-button: 1.2rem;
+  /* Colors */
+  --primary-color: #667eea;
+  --primary-dark: #5568d3;
+  --primary-light: #8b9df7;
+  --secondary-color: #764ba2;
+  --accent-color: #ff6b6b;
+  --accent-light: #ffa500;
+  --text-color: #ffffff;
+  --text-secondary: #e0e0e0;
+  --bg-dark: #1a1a2e;
+  --bg-light: #f5f5f5;
+  --border-color: rgba(255, 255, 255, 0.2);
+  
+  /* Spacing */
+  --spacing-xs: 5px;
+  --spacing-sm: 10px;
+  --spacing-md: 20px;
+  --spacing-lg: 30px;
+  --spacing-xl: 40px;
+  --spacing-xxl: 60px;
+  
+  /* Typography */
+  --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.5rem;
+  --font-size-xl: 2rem;
+  --font-size-xxl: 2.5rem;
+  
+  /* Effects */
   --border-radius: 12px;
-  --shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.15);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.2);
+  
+  /* Gradients */
+  --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --gradient-secondary: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
 }
 
-/* Home screen com gradiente de fundo premium */
-.home-screen {
-  min-height: 100vh;
-  background: linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end));
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: var(--spacing-large);
-  animation: fadeIn 1s ease-in;
-}
+/* ========================================
+   BASE STYLES
+   ======================================== */
 
-/* Card container centralizado com shadow e border-radius */
-.card {
-  background: white;
-  border-radius: var(--border-radius);
-  box-shadow: var(--shadow);
-  padding: var(--spacing-large);
-  max-width: 400px;
+html,
+body {
+  height: 100%;
   width: 100%;
-  text-align: center;
-  animation: fadeIn 0.8s ease-in;
+  overflow: hidden;
 }
 
-/* Tipografia clara */
-h1 {
+body {
   font-family: var(--font-family);
-  font-size: var(--font-size-h1);
-  color: var(--text-primary);
-  margin-bottom: var(--spacing-medium);
+  font-size: var(--font-size-base);
+  color: var(--text-color);
+  background-color: var(--bg-dark);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-p {
-  font-family: var(--font-family);
-  font-size: var(--font-size-p);
-  color: var(--text-secondary);
-  margin-bottom: var(--spacing-large);
-}
+/* ========================================
+   SCREENS & LAYOUT
+   ======================================== */
 
-button {
-  font-family: var(--font-family);
-  font-size: var(--font-size-button);
-  background: var(--accent-color);
-  color: white;
-  border: none;
-  border-radius: var(--border-radius);
-  padding: var(--spacing-medium) var(--spacing-large);
-  cursor: pointer;
-  transition: background 0.3s ease;
-}
-
-button:hover {
-  background: darken(var(--accent-color), 10%);
-}
-
-/* Transições suaves ao trocar de tela */
 .screen {
-  transition: opacity 0.5s ease, transform 0.5s ease;
-}
-
-.screen.hidden {
-  opacity: 0;
-  transform: translateY(20px);
-}
-
-/* AR screen ocupando 100% da viewport */
-.ar-screen {
-  position: fixed;
+  position: absolute;
   top: 0;
   left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: black;
-  z-index: 1000;
+  width: 100%;
+  height: 100%;
+  display: none;
+  transition: var(--transition);
 }
 
-/* Exit button com hover effect */
-.exit-button {
-  position: absolute;
-  top: var(--spacing-medium);
-  right: var(--spacing-medium);
-  background: rgba(255, 255, 255, 0.8);
-  color: var(--text-primary);
-  border: none;
-  border-radius: 50%;
-  width: 50px;
-  height: 50px;
+.screen.active {
+  display: block;
+}
+
+/* ========================================
+   HOME SCREEN
+   ======================================== */
+
+#home-screen {
+  background: var(--gradient-primary);
   display: flex;
-  align-items: center;
   justify-content: center;
-  cursor: pointer;
-  transition: background 0.3s ease, transform 0.3s ease;
+  align-items: center;
+  padding: var(--spacing-lg);
 }
 
-.exit-button:hover {
-  background: rgba(255, 255, 255, 1);
-  transform: scale(1.1);
+.home-container {
+  max-width: 600px;
+  width: 100%;
+  text-align: center;
+  animation: slideUp 0.6s ease-out;
 }
 
-/* Mobile-first responsivo */
-@media (min-width: 768px) {
-  /* Tablet */
-  .card {
-    max-width: 500px;
-  }
-  h1 {
-    font-size: 3rem;
-  }
+.home-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
 }
 
-@media (min-width: 1024px) {
-  /* Desktop */
-  .card {
-    max-width: 600px;
-  }
-  h1 {
-    font-size: 3.5rem;
-  }
+.home-title {
+  font-size: var(--font-size-xxl);
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  margin-bottom: var(--spacing-md);
+  text-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
-/* Animações de entrada suaves */
-@keyframes fadeIn {
+.home-description {
+  font-size: var(--font-size-lg);
+  line-height: 1.6;
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-md);
+}
+
+/* ========================================
+   AR SCREEN
+   ======================================== */
+
+#ar-screen {
+  position: relative;
+  background: #000;
+}
+
+#ar-screen a-scene {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+/* ========================================
+   ANIMATIONS
+   ======================================== */
+
+@keyframes slideUp {
   from {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(30px);
   }
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
   }
 }

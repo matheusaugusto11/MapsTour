@@ -1,126 +1,135 @@
-// main.js - Arquivo principal para AR.js Maps Tour
+// main.js for AR.js Maps Tour
+// Manages screen transitions and POI creation/removal
 
-// Verificação se o array 'pois' existe no carregamento da página
+console.log('main.js carregou');
+console.log('Número de POIs:', pois.length);
+
+// ========================================
+// EVENT LISTENERS
+// ========================================
+
 document.addEventListener('DOMContentLoaded', function() {
-    if (typeof pois === 'undefined' || !Array.isArray(pois)) {
-        console.error('Erro: Array pois não encontrado ou não é um array válido.');
+    console.log('DOMContentLoaded: Inicializando aplicação');
+    
+    // Verificar se pois existe
+    if (typeof pois === 'undefined') {
+        console.error('ERRO: pois não está definido. Certifique-se de que data.js foi carregado.');
         return;
     }
-    console.log('Array pois carregado com sucesso:', pois);
+    
+    console.log('✅ Array pois carregado com sucesso:', pois.length, 'POIs');
+});
 
-    // Adiciona event listeners para os botões
-    const startArBtn = document.getElementById('start-ar-btn');
-    const exitBtn = document.getElementById('exit-btn');
-
-    if (startArBtn) {
-        startArBtn.addEventListener('click', function() {
-            console.log('Botão start-ar-btn clicado. Iniciando AR.');
-            try {
-                toggleScreens('ar');
-                createPOIs();
-            } catch (error) {
-                console.error('Erro ao iniciar AR:', error);
-            }
-        });
-    } else {
-        console.warn('Botão start-ar-btn não encontrado no DOM.');
-    }
-
-    if (exitBtn) {
-        exitBtn.addEventListener('click', function() {
-            console.log('Botão exit-btn clicado. Saindo do AR.');
-            try {
-                removePOIs();
-                toggleScreens('home');
-            } catch (error) {
-                console.error('Erro ao sair do AR:', error);
-            }
-        });
-    } else {
-        console.warn('Botão exit-btn não encontrado no DOM.');
+// Event listener para o botão "Iniciar Tour AR"
+document.getElementById('start-experience').addEventListener('click', function() {
+    console.log('➤ Botão "Iniciar Tour AR" clicado');
+    
+    try {
+        toggleScreens('ar');
+        createPOIs();
+        console.log('✅ AR iniciado com sucesso');
+    } catch (error) {
+        console.error('❌ Erro ao iniciar AR:', error);
     }
 });
 
-// Função para criar POIs na cena AR
-function createPOIs() {
+// Event listener para o botão "Sair"
+document.getElementById('exit-ar').addEventListener('click', function() {
+    console.log('➤ Botão "Sair" clicado');
+    
     try {
-        // Obtém a cena A-Frame do DOM
-        const scene = document.querySelector('a-scene');
-        if (!scene) {
-            throw new Error('Cena A-Frame não encontrada no DOM.');
-        }
-        console.log('Cena A-Frame obtida:', scene);
+        removePOIs();
+        toggleScreens('home');
+        console.log('✅ AR encerrado com sucesso');
+    } catch (error) {
+        console.error('❌ Erro ao sair de AR:', error);
+    }
+});
 
-        // Itera sobre cada POI no array pois
-        pois.forEach(function(poi, index) {
-            console.log(`Processando POI ${index}:`, poi);
+// ========================================
+// SCREEN MANAGEMENT
+// ========================================
 
-            // Lê as propriedades do modelo
+function toggleScreens(screen) {
+    console.log(`📡 Alternando para tela: ${screen}`);
+    
+    const homeScreen = document.getElementById('home-screen');
+    const arScreen = document.getElementById('ar-screen');
+    
+    if (screen === 'ar') {
+        homeScreen.classList.remove('active');
+        arScreen.classList.add('active');
+        console.log('🎬 Tela AR ativada');
+    } else if (screen === 'home') {
+        arScreen.classList.remove('active');
+        homeScreen.classList.add('active');
+        console.log('🏠 Tela Home ativada');
+    }
+}
+
+// ========================================
+// POI MANAGEMENT
+// ========================================
+
+function createPOIs() {
+    console.log('📍 Criando POIs...');
+    
+    const scene = document.querySelector('a-scene');
+    
+    if (!scene) {
+        console.error('❌ ERRO: a-scene não encontrada no DOM');
+        return;
+    }
+    
+    pois.forEach((poi, index) => {
+        try {
+            // Extrair dados do modelo
             const primitive = poi.modelo.geometry.primitive;
             const color = poi.modelo.material.color;
-            console.log(`POI ${index} - Primitive: ${primitive}, Color: ${color}`);
-
-            // Cria a entidade A-Frame
+            
+            // Criar entidade
             const entity = document.createElement('a-entity');
             entity.setAttribute('geometry', `primitive: ${primitive}`);
             entity.setAttribute('material', `color: ${color}`);
             entity.setAttribute('position', '0 0 -5');
-            entity.setAttribute('id', `poi-${index}`);
-            console.log(`Entidade POI ${index} criada com ID poi-${index}`);
-
-            // Adiciona à cena
+            entity.id = `poi-${index}`;
+            
+            // Adicionar à cena
             scene.appendChild(entity);
-            console.log(`POI ${index} adicionado à cena.`);
-        });
-    } catch (error) {
-        console.error('Erro na função createPOIs:', error);
-    }
+            
+            console.log(`✅ POI ${index} (${poi.name}) criado:`);
+            console.log(`   - Geometria: ${primitive}`);
+            console.log(`   - Cor: ${color}`);
+            console.log(`   - Posição: 0 0 -5`);
+            
+        } catch (error) {
+            console.error(`❌ Erro ao criar POI ${index}:`, error);
+        }
+    });
+    
+    console.log(`✅ Todos os ${pois.length} POIs foram criados com sucesso!`);
 }
 
-// Função para remover POIs da cena
 function removePOIs() {
-    try {
-        // Obtém a cena A-Frame do DOM
-        const scene = document.querySelector('a-scene');
-        if (!scene) {
-            throw new Error('Cena A-Frame não encontrada no DOM.');
-        }
-        console.log('Cena A-Frame obtida para remoção:', scene);
-
-        // Itera sobre o número de POIs para remover por ID
-        pois.forEach(function(poi, index) {
-            const entityId = `poi-${index}`;
-            const entity = document.getElementById(entityId);
-            if (entity) {
-                scene.removeChild(entity);
-                console.log(`POI ${index} (ID: ${entityId}) removido da cena.`);
-            } else {
-                console.warn(`Entidade POI ${index} (ID: ${entityId}) não encontrada para remoção.`);
-            }
-        });
-    } catch (error) {
-        console.error('Erro na função removePOIs:', error);
+    console.log('🗑️  Removendo POIs...');
+    
+    const scene = document.querySelector('a-scene');
+    
+    if (!scene) {
+        console.error('❌ ERRO: a-scene não encontrada no DOM');
+        return;
     }
-}
-
-// Função para alternar entre telas
-function toggleScreens(screen) {
-    try {
-        const homeScreen = document.getElementById('home-screen');
-        const arScreen = document.getElementById('ar-screen');
-
-        if (screen === 'home') {
-            if (homeScreen) homeScreen.style.display = 'block';
-            if (arScreen) arScreen.style.display = 'none';
-            console.log('Tela alternada para home-screen.');
-        } else if (screen === 'ar') {
-            if (homeScreen) homeScreen.style.display = 'none';
-            if (arScreen) arScreen.style.display = 'block';
-            console.log('Tela alternada para ar-screen.');
+    
+    pois.forEach((poi, index) => {
+        const entity = document.getElementById(`poi-${index}`);
+        
+        if (entity) {
+            scene.removeChild(entity);
+            console.log(`✅ POI ${index} (${poi.name}) removido`);
         } else {
-            console.warn('Parâmetro screen inválido para toggleScreens. Use "home" ou "ar".');
+            console.warn(`⚠️  POI ${index} (${poi.name}) não encontrado para remover`);
         }
-    } catch (error) {
-        console.error('Erro na função toggleScreens:', error);
-    }
+    });
+    
+    console.log(`✅ Todos os POIs foram removidos com sucesso!`);
 }

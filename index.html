@@ -1,41 +1,45 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Tour interativo em realidade aumentada usando AR.js Maps.">
-    <meta name="keywords" content="AR, realidade aumentada, tour, mapas, AR.js">
-    <meta name="author" content="ADA Metaverse">
-    <title>AR.js Maps Tour</title>
-    <!-- Carregamento do A-Frame no HEAD -->
-    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-    <!-- Carregamento do AR.js -->
-    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
-    <!-- Link para o CSS -->
+    <meta name="description" content="Maps Tour - Experiência de Realidade Aumentada baseada em Mapas">
+    <title>Maps Tour - AR Experience</title>
+    
+    <!-- CSS Files -->
     <link rel="stylesheet" href="src/css/style.css">
+    <link rel="stylesheet" href="src/css/components.css">
+    <link rel="stylesheet" href="src/css/responsive.css">
+    
+    <!-- A-Frame and AR.js -->
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
 </head>
 <body>
-    <!-- Tela inicial com design moderno -->
-    <div id="home-screen" data-screen="home" style="display: block;">
-        <div class="home-container" data-home="container">
-            <h1 data-home="title">Bem-vindo ao AR.js Maps Tour</h1>
-            <p data-home="description">Explore locais incríveis em realidade aumentada. Toque no botão abaixo para iniciar.</p>
-            <button id="start-ar-btn" data-action="start-ar">Iniciar Tour AR</button>
+    <!-- Home Screen -->
+    <div id="home-screen" class="screen active" data-screen="home">
+        <div class="home-container">
+            <div class="home-content">
+                <h1 class="home-title">Maps Tour</h1>
+                <p class="home-description">Explore pontos de interesse em realidade aumentada. Descubra locais históricos e culturais através de uma experiência imersiva e interativa.</p>
+                <button id="start-experience" class="btn btn-primary btn-large">
+                    <span>Iniciar Tour AR</span>
+                </button>
+            </div>
         </div>
     </div>
 
-    <!-- Tela de AR -->
-    <div id="ar-screen" data-screen="ar" style="display: none;">
-        <a-scene embedded arjs="sourceType: webcam; sourceWidth:1280; sourceHeight:960; displayWidth: 1280; displayHeight: 960; debugUIEnabled: false;">
-            <!-- Câmera GPS para AR baseada em localização -->
-            <a-camera gps-camera rotation-reader></a-camera>
+    <!-- AR Screen -->
+    <div id="ar-screen" class="screen" data-screen="ar">
+        <button id="exit-ar" class="btn btn-secondary btn-exit" aria-label="Sair da experiência AR">
+            <span>✕ Sair</span>
+        </button>
+        <a-scene gps-camera>
+            <a-camera></a-camera>
         </a-scene>
     </div>
 
-    <!-- Botão de saída fixo no canto superior direito -->
-    <button id="exit-btn" data-action="exit" style="position: fixed; top: 10px; right: 10px; display: none;">Sair</button>
-
-    <!-- Scripts carregados no BODY antes do fechamento -->
+    <!-- Scripts -->
     <script src="src/js/data.js"></script>
     <script src="src/js/main.js"></script>
 </body>

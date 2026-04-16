@@ -1,79 +1,213 @@
-/* Base styles for mobile small (up to 320px) - Mobile-first approach */
-body {
-    font-size: 14px;
-    padding: 10px;
+/* ========================================
+   MOBILE FIRST - SMALL DEVICES (< 480px)
+   ======================================== */
+
+@media (max-width: 480px) {
+  :root {
+    --font-size-xs: 0.7rem;
+    --font-size-sm: 0.8rem;
+    --font-size-base: 0.95rem;
+    --font-size-lg: 1.3rem;
+    --font-size-xl: 1.8rem;
+    --font-size-xxl: 2rem;
+    
+    --spacing-lg: 20px;
+    --spacing-xl: 30px;
+    --spacing-xxl: 40px;
+  }
+
+  .home-title {
+    font-size: var(--font-size-xl);
+  }
+
+  .home-description {
+    font-size: var(--font-size-base);
+  }
+
+  .btn-large {
+    min-width: auto;
+    width: 100%;
+    padding: var(--spacing-md) var(--spacing-lg);
+    font-size: var(--font-size-base);
+  }
+
+  .btn-exit {
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-size: var(--font-size-xs);
+  }
+
+  #home-screen {
+    padding: var(--spacing-md);
+  }
+
+  .home-container {
+    max-width: 100%;
+  }
 }
 
-.button {
-    height: 40px;
-    width: 100px;
-    /* Other button styles */
+/* ========================================
+   TABLETS (480px - 768px)
+   ======================================== */
+
+@media (min-width: 481px) and (max-width: 768px) {
+  :root {
+    --font-size-lg: 1.4rem;
+    --font-size-xl: 2rem;
+    --font-size-xxl: 2.2rem;
+    
+    --spacing-lg: 25px;
+    --spacing-xl: 35px;
+    --spacing-xxl: 50px;
+  }
+
+  .home-title {
+    font-size: var(--font-size-xxl);
+  }
+
+  .home-description {
+    font-size: var(--font-size-lg);
+  }
+
+  .btn-large {
+    min-width: 280px;
+    padding: var(--spacing-lg) var(--spacing-xl);
+    font-size: var(--font-size-lg);
+  }
+
+  .btn-exit {
+    padding: var(--spacing-md) var(--spacing-lg);
+    font-size: var(--font-size-sm);
+  }
 }
 
-.info-panel {
-    position: absolute;
-    bottom: 10px;
-    left: 10px;
-    right: 10px;
-    /* Other panel styles */
+/* ========================================
+   SMALL LAPTOPS (769px - 1024px)
+   ======================================== */
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .home-container {
+    max-width: 500px;
+  }
+
+  .btn-large {
+    min-width: 250px;
+  }
 }
 
-/* Media query for mobile medium (480px and up) */
-@media (min-width: 480px) {
-    body {
-        font-size: 16px;
-        padding: 15px;
-    }
+/* ========================================
+   DESKTOPS (1025px+)
+   ======================================== */
 
-    .button {
-        height: 45px;
-        width: 120px;
-    }
+@media (min-width: 1025px) {
+  .home-container {
+    max-width: 600px;
+  }
 
-    .info-panel {
-        bottom: 15px;
-        left: 15px;
-        right: 15px;
-    }
+  .btn-large {
+    min-width: 280px;
+  }
+
+  .btn:hover {
+    transform: translateY(-3px);
+  }
 }
 
-/* Media query for tablet (768px and up) */
-@media (min-width: 768px) {
-    body {
-        font-size: 18px;
-        padding: 20px;
-    }
+/* ========================================
+   LANDSCAPE ORIENTATION
+   ======================================== */
 
-    .button {
-        height: 50px;
-        width: 140px;
-    }
+@media (orientation: landscape) and (max-height: 600px) {
+  #home-screen {
+    padding: var(--spacing-md);
+    min-height: 100vh;
+  }
 
-    .info-panel {
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        bottom: auto;
-        left: auto;
-        width: 300px;
-    }
+  .home-content {
+    gap: var(--spacing-md);
+  }
+
+  .home-title {
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .home-description {
+    font-size: var(--font-size-base);
+    margin-bottom: var(--spacing-md);
+  }
+
+  .btn-large {
+    padding: var(--spacing-md) var(--spacing-lg);
+    font-size: var(--font-size-base);
+  }
 }
 
-/* Media query for desktop (1024px and up) */
-@media (min-width: 1024px) {
-    body {
-        font-size: 20px;
-        padding: 25px;
-    }
+/* ========================================
+   PORTRAIT ORIENTATION
+   ======================================== */
 
-    .button {
-        height: 55px;
-        width: 160px;
-    }
+@media (orientation: portrait) and (min-height: 800px) {
+  .home-content {
+    gap: var(--spacing-lg);
+  }
+}
 
-    .info-panel {
-        width: 350px;
-        top: 25px;
-        right: 25px;
-    }
+/* ========================================
+   HIGH RESOLUTION DISPLAYS
+   ======================================== */
+
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .btn {
+    box-shadow: var(--shadow-lg);
+  }
+
+  .home-title {
+    text-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+  }
+}
+
+/* ========================================
+   TOUCH DEVICES
+   ======================================== */
+
+@media (hover: none) and (pointer: coarse) {
+  .btn {
+    padding: var(--spacing-lg) var(--spacing-xl);
+    min-height: 48px;
+    min-width: 48px;
+  }
+
+  .btn-exit {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* ========================================
+   REDUCED MOTION
+   ======================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ========================================
+   DARK MODE (se o navegador suportar)
+   ======================================== */
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-dark: #0a0a1a;
+  }
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg-dark: #f5f5f5;
+    --text-color: #1a1a2e;
+    --text-secondary: #555555;
+  }
 }

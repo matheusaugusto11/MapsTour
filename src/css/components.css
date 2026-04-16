@@ -1,147 +1,171 @@
-/* components.css for AR.js Maps Tour project */
+/* ========================================
+   BUTTONS
+   ======================================== */
 
-/* Mobile-first responsive design */
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-md) var(--spacing-lg);
+  font-family: var(--font-family);
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  border: none;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  transition: var(--transition);
+  box-shadow: var(--shadow-md);
+  position: relative;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
-body {
-  font-family: 'Arial', sans-serif;
-  background-color: #f0f0f0;
-  color: #333;
-  overflow: hidden; /* For full-screen experience */
+/* Button Primary */
+.btn-primary {
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+  color: var(--text-color);
 }
 
-/* Reusable classes */
-.flex {
-  display: flex;
+.btn-primary:hover {
+  background: linear-gradient(135deg, var(--primary-dark) 0%, #4a5ac2 100%);
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-2px);
 }
 
-.flex-column {
-  flex-direction: column;
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+/* Button Secondary */
+.btn-secondary {
+  background: rgba(255, 107, 107, 0.9);
+  color: var(--text-color);
+  backdrop-filter: blur(10px);
+}
+
+.btn-secondary:hover {
+  background: rgba(255, 107, 107, 1);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Button Large */
+.btn-large {
+  padding: var(--spacing-lg) var(--spacing-xxl);
+  font-size: var(--font-size-lg);
+  min-width: 250px;
+}
+
+/* Button Exit */
+.btn-exit {
+  position: absolute;
+  top: var(--spacing-md);
+  right: var(--spacing-md);
+  z-index: 1000;
+  padding: var(--spacing-md) var(--spacing-lg);
+  font-size: var(--font-size-sm);
+  min-width: auto;
+}
+
+/* Button Ripple Effect */
+.btn::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+
+.btn:active::after {
+  width: 300px;
+  height: 300px;
+}
+
+/* ========================================
+   CONTAINERS
+   ======================================== */
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--spacing-lg);
 }
 
 .flex-center {
+  display: flex;
   justify-content: center;
   align-items: center;
 }
 
-.flex-space-between {
-  justify-content: space-between;
+.flex-column {
+  display: flex;
+  flex-direction: column;
 }
 
-/* POI Info Panel */
-.poi-info {
-  position: absolute;
-  bottom: 20px;
-  left: 20px;
-  right: 20px;
-  background-color: rgba(255, 255, 255, 0.9);
-  border-radius: 10px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-  padding: 20px;
-  transition: all 0.3s ease;
-  z-index: 1000;
+.gap-small {
+  gap: var(--spacing-sm);
 }
 
-/* Title and Description Card */
-.title-card {
-  margin-bottom: 10px;
+.gap-medium {
+  gap: var(--spacing-md);
 }
 
-.title-card h2 {
-  font-size: 1.5rem;
-  margin-bottom: 5px;
+.gap-large {
+  gap: var(--spacing-lg);
 }
 
-.description-card {
-  font-size: 1rem;
-  line-height: 1.4;
+/* ========================================
+   TEXT UTILITIES
+   ======================================== */
+
+.text-center {
+  text-align: center;
 }
 
-/* Buttons */
-.btn {
-  background-color: #007bff;
-  color: white;
-  border: none;
-  border-radius: 5px;
-  padding: 10px 20px;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: background-color 0.3s ease, transform 0.2s ease;
-  margin: 5px;
+.text-bold {
+  font-weight: 700;
 }
 
-.btn:hover {
-  background-color: #0056b3;
-  transform: scale(1.05);
+.text-light {
+  font-weight: 300;
 }
 
-.btn:active {
-  transform: scale(0.95);
+.text-muted {
+  color: var(--text-secondary);
 }
 
-.start-btn {
-  /* Specific styles if needed */
+.text-small {
+  font-size: var(--font-size-sm);
 }
 
-.stop-btn {
-  background-color: #dc3545;
+.text-large {
+  font-size: var(--font-size-lg);
 }
 
-.stop-btn:hover {
-  background-color: #c82333;
-}
+/* ========================================
+   VISIBILITY
+   ======================================== */
 
-/* Hidden element */
 .hidden {
   display: none !important;
 }
 
-/* Distance/Proximity Element */
-.distance {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  background-color: rgba(0, 0, 0, 0.7);
-  color: white;
-  padding: 10px;
-  border-radius: 5px;
-  font-size: 0.9rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-  transition: opacity 0.3s ease;
+.visible {
+  display: block !important;
 }
 
-/* AR Label Card */
-.ar-label {
+.sr-only {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background-color: rgba(255, 255, 255, 0.9);
-  border-radius: 10px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-  padding: 15px;
-  text-align: center;
-  font-size: 1.2rem;
-  transition: all 0.3s ease;
-  z-index: 1001;
-}
-
-/* Responsive adjustments */
-@media (min-width: 768px) {
-  .poi-info {
-    left: 50px;
-    right: 50px;
-  }
-
-  .distance {
-    right: 50px;
-  }
-
-  .ar-label {
-    font-size: 1.5rem;
-  }
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
 }
