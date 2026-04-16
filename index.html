@@ -40,7 +40,7 @@
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.xr.enabled = true;
+        <!-- renderer.xr.enabled = true; -->
         document.body.appendChild(renderer.domElement);
 
         // Luzes ambientais
@@ -104,6 +104,7 @@
                 xrSession = await navigator.xr.requestSession('immersive-ar', {
                     requiredFeatures: ['hit-test']
                 });
+                console.log('Sessão XR iniciada')
                 renderer.xr.setSession(xrSession);
                 startButton.style.display = 'none';
             }
