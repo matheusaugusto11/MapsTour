@@ -4,28 +4,30 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AR.js Maps Tour</title>
-    <!-- CDN link for A-Frame v1.3.0 -->
+    <!-- CDN for A-Frame v1.3.0 -->
     <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
-    <!-- CDN link for AR.js with GPS support -->
+    <!-- CDN for AR.js with GPS -->
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
-</head>
-<body>
-    <!-- Info panel to display POI name and description -->
-    <div id="info-panel">
-        <h2 id="poi-name">POI Name</h2>
-        <p id="poi-description">POI Description</p>
-    </div>
-    <!-- Control buttons for starting and stopping the tour -->
-    <div id="controls">
-        <button id="start-tour">Start Tour</button>
-        <button id="stop-tour">Stop Tour</button>
-    </div>
-    <!-- A-Frame scene with GPS camera mode for AR -->
-    <a-scene gps-camera>
-        <!-- 3D models will be loaded dynamically here from external URLs (.glb/.gltf) via data.js -->
-    </a-scene>
-    <!-- Load data.js for POI data and main.js for tour logic -->
+    <!-- Link to external CSS -->
+    <link rel="stylesheet" href="src\css\style.css">
+    <!-- Link to external JS files -->
     <script src="src\js\data.js"></script>
     <script src="src\js\main.js"></script>
+</head>
+<body>
+    <!-- Info Panel -->
+    <section id="info-panel">
+        <h2>AR Maps Tour</h2>
+        <p>Welcome to the Augmented Reality Maps Tour. Explore your surroundings with AR!</p>
+    </section>
+    
+    <!-- Buttons -->
+    <button id="start-btn">Start</button>
+    <button id="stop-btn">Stop</button>
+    
+    <!-- AR Scene -->
+    <a-scene gps-camera>
+        <!-- AR content goes here -->
+    </a-scene>
 </body>
 </html>

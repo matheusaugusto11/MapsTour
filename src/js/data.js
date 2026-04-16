@@ -1,62 +1,61 @@
-// data.js - AR.js Maps Tour POIs Data
-// This file exports an array of Points of Interest (POIs) for use in AR.js Maps Tour.
-// Each POI object contains the following properties:
-// - id: Unique identifier for the POI (number or string).
-// - latitude: Latitude coordinate (number).
-// - longitude: Longitude coordinate (number).
-// - nome: Name of the POI (string).
-// - descricao: Description of the POI (string).
-// - urlModelo3D: URL to the 3D model file (GLB or GLTF format, string).
-// - labelAR: Label to display in AR (string).
-// - detectionRadius: Radius in meters for detection (number).
+// data.js - Data file for AR.js Maps Tour prototyping
+// This file defines Points of Interest (POIs) for Sergipe, Brazil.
+// Each POI includes location data (latitude, longitude), name, description,
+// and a 'modelo' object for simple 3D shapes using A-Frame primitives.
+// Instead of modelUrl, we use geometry (primitive), material (color), and scale.
 
-// Array of POIs
+// Array of POIs - easily scalable by adding more objects
 const pois = [
-    {
-        id: 1,
-        latitude: -10.941,
-        longitude: -37.072,
-        nome: "São Cristóvão",
-        descricao: "A charming colonial town known for its historical architecture and cultural heritage.",
-        urlModelo3D: "https://example.com/sao-cristovao-model.glb", // Placeholder URL; replace with actual GLB/GLTF file
-        labelAR: "São Cristóvão",
-        detectionRadius: 50
-    },
-    {
-        id: 2,
-        latitude: -10.133,
-        longitude: -36.833,
-        nome: "Praia do Saco",
-        descricao: "A beautiful beach with crystal-clear waters, ideal for relaxation and water sports.",
-        urlModelo3D: "https://example.com/praia-do-saco-model.glb", // Placeholder URL; replace with actual GLB/GLTF file
-        labelAR: "Praia do Saco",
-        detectionRadius: 50
-    },
-    {
-        id: 3,
-        latitude: -10.947,
-        longitude: -37.073,
-        nome: "Marco Zero - Aracaju",
-        descricao: "The zero kilometer marker in Aracaju, a symbol of the city's coastal identity.",
-        urlModelo3D: "https://example.com/marco-zero-model.glb", // Placeholder URL; replace with actual GLB/GLTF file
-        labelAR: "Marco Zero",
-        detectionRadius: 50
+  {
+    // POI 1: São Cristóvão - Cube (box primitive)
+    latitude: -10.9211,
+    longitude: -37.1033,
+    name: "São Cristóvão",
+    description: "A historic city in Sergipe, known for its colonial architecture.",
+    modelo: {
+      geometry: {
+        primitive: "box"  // Cube shape
+      },
+      material: {
+        color: "red"  // Red color
+      },
+      scale: "1 1 1"  // Default scale
     }
+  },
+  {
+    // POI 2: Aracaju - Sphere
+    latitude: -10.9472,
+    longitude: -37.0731,
+    name: "Aracaju",
+    description: "The capital of Sergipe, featuring beautiful beaches and urban attractions.",
+    modelo: {
+      geometry: {
+        primitive: "sphere"  // Sphere shape
+      },
+      material: {
+        color: "blue"  // Blue color
+      },
+      scale: "1 1 1"  // Default scale
+    }
+  },
+  {
+    // POI 3: Laranjeiras - Cylinder
+    latitude: -10.8044,
+    longitude: -37.1683,
+    name: "Laranjeiras",
+    description: "A municipality in Sergipe with rich cultural heritage.",
+    modelo: {
+      geometry: {
+        primitive: "cylinder"  // Cylinder shape
+      },
+      material: {
+        color: "green"  // Green color
+      },
+      scale: "1 1 1"  // Default scale
+    }
+  }
 ];
 
-// To add a new POI, create a new object in the pois array with the required properties.
-// Ensure the id is unique, coordinates are accurate, and the 3D model URL points to a valid GLB/GLTF file.
-// Example:
-// {
-//     id: 4,
-//     latitude: -10.123,
-//     longitude: -37.456,
-//     nome: "New Place",
-//     descricao: "Description of the new place.",
-//     urlModelo3D: "https://example.com/new-model.glb",
-//     labelAR: "New Label",
-//     detectionRadius: 50
-// }
-
-// Export the POIs array for use in other JavaScript files
-module.exports = pois;
+// Export the pois array for use in other modules
+// In a browser environment, you can access it directly or use a module system
+export default pois;
