@@ -1,84 +1,126 @@
-/* Reset default browser styles to ensure consistency */
+/* Reset default styles */
 * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
-/* Define CSS variables for theme: colors, spacing, and transitions */
+/* CSS Variables for colors and spacing */
 :root {
-    --primary-color: #007bff; /* Blue for buttons */
-    --secondary-color: rgba(0, 0, 0, 0.7); /* Semi-transparent black for panel */
-    --text-color: #ffffff; /* White text */
-    --spacing-small: 10px;
-    --spacing-medium: 20px;
-    --transition-fast: 0.3s ease;
+  --primary-color: #ff6b6b;
+  --secondary-color: #ffa500;
+  --background-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --text-color: #ffffff;
+  --spacing-small: 10px;
+  --spacing-medium: 20px;
+  --spacing-large: 40px;
+  --font-size-large: 2rem;
+  --font-size-medium: 1.5rem;
+  --font-size-small: 1rem;
+  --border-radius: 10px;
+  --transition-duration: 0.3s;
 }
 
-/* Configure body to occupy 100% of the screen */
+/* Body configuration */
 body {
-    width: 100vw;
-    height: 100vh;
-    overflow: hidden; /* Prevent scrolling */
-    font-family: Arial, sans-serif; /* Basic font */
+  height: 100vh;
+  width: 100vw;
+  font-family: Arial, sans-serif;
+  overflow: hidden;
 }
 
-/* Style a-scene to occupy maximum space */
-a-scene {
-    width: 100%;
-    height: 100%;
-    display: block;
+/* Home screen styling */
+#home-screen {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  width: 100vw;
+  background: var(--background-gradient);
+  color: var(--text-color);
+  text-align: center;
+  padding: var(--spacing-large);
 }
 
-/* Style #info-panel positioned at the bottom with semi-transparent background */
-/* #info-panel {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background-color: var(--secondary-color);
-    color: var(--text-color);
-    padding: var(--spacing-medium);
-    text-align: center;
-    z-index: 10;
-}*/
-
-/* Style buttons #start-btn and #stop-btn */
-#start-btn, #stop-btn {
-    background-color: var(--primary-color);
-    color: var(--text-color);
-    border: none;
-    padding: var(--spacing-small) var(--spacing-medium);
-    margin: 0 var(--spacing-small);
-    border-radius: 5px;
-    cursor: pointer;
-    transition: background-color var(--transition-fast);
+#home-screen h1 {
+  font-size: var(--font-size-large);
+  margin-bottom: var(--spacing-medium);
 }
 
-#start-btn:hover, #stop-btn:hover {
-    background-color: #0056b3; /* Darker blue on hover */
+#home-screen p {
+  font-size: var(--font-size-medium);
+  margin-bottom: var(--spacing-large);
 }
 
-/* Additional styles for a-scene and a-entity if necessary */
-a-scene {
-    /* Ensure AR scene is visible */
-    position: relative;
+#home-screen button {
+  font-size: var(--font-size-medium);
+  padding: var(--spacing-medium) var(--spacing-large);
+  background-color: var(--primary-color);
+  color: var(--text-color);
+  border: none;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  transition: background-color var(--transition-duration);
 }
 
-a-entity {
-    /* Basic styling for entities, if needed */
-    /* No specific styles added unless required */
+#home-screen button:hover {
+  background-color: var(--secondary-color);
+}
+
+/* AR screen styling */
+#ar-screen {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+#ar-screen a-scene {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Exit AR button styling */
+#exit-ar {
+  position: absolute;
+  top: var(--spacing-small);
+  right: var(--spacing-small);
+  z-index: 1000;
+  background-color: var(--primary-color);
+  color: var(--text-color);
+  padding: var(--spacing-small) var(--spacing-medium);
+  border: none;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  font-size: var(--font-size-small);
+  transition: background-color var(--transition-duration);
+}
+
+#exit-ar:hover {
+  background-color: var(--secondary-color);
 }
 
 /* Media queries for mobile */
 @media (max-width: 768px) {
-    #info-panel {
-        padding: var(--spacing-small);
-        font-size: 14px; /* Smaller text on mobile */
-    }
+  :root {
+    --font-size-large: 2.5rem;
+    --font-size-medium: 2rem;
+    --font-size-small: 1.2rem;
+    --spacing-large: 50px;
+    --spacing-medium: 30px;
+  }
 
-    #start-btn, #stop-btn {
-        padding: var(--spacing-small);
-        font-size: 14px; /* Smaller buttons */
-    }
+  #home-screen button {
+    padding: var(--spacing-large) var(--spacing-large);
+  }
+
+  #exit-ar {
+    padding: var(--spacing-medium) var(--spacing-large);
+    font-size: var(--font-size-medium);
+  }
 }
