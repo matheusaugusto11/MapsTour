@@ -4,33 +4,31 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AR.js Maps Tour</title>
-
-    <!-- CDN for A-Frame v1.3.0 -->
+    
+    <!-- A-Frame PRIMEIRO -->
     <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
-    <!-- CDN for AR.js with GPS -->
+    <!-- AR.js DEPOIS -->
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
-
-    <!-- Link to external CSS -->
-    <link rel="stylesheet" href="src\css\style.css">
-    <!-- Link to external JS files -->
-    <script src="src\js\data.js"></script>
-    <script src="src\js\main.js"></script>
+    
+    <link rel="stylesheet" href="src/css/style.css">
 </head>
 <body>
     <!-- Info Panel -->
-    <!-- <section id="info-panel">
+    <div id="info-panel">
         <h2>AR Maps Tour</h2>
-        <p>Welcome to the Augmented Reality Maps Tour. Explore your surroundings with AR!</p>
-    </section> -->
+        <p>Welcome!</p>
+    </div>
     
     <!-- Buttons -->
     <button id="start-btn">Start</button>
     <button id="stop-btn">Stop</button>
     
-    <!-- AR Scene -->
+    <!-- A-SCENE -->
     <a-scene gps-camera>
-        <a-camera></a-camera>
-        <!-- AR content goes here -->
     </a-scene>
+    
+    <!-- SCRIPTS NA ORDEM CORRETA -->
+    <script src="src/js/data.js"></script>
+    <script src="src/js/main.js"></script>
 </body>
 </html>

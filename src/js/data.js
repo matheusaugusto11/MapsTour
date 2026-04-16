@@ -1,61 +1,37 @@
-// data.js - Data file for AR.js Maps Tour prototyping
-// This file defines Points of Interest (POIs) for Sergipe, Brazil.
-// Each POI includes location data (latitude, longitude), name, description,
-// and a 'modelo' object for simple 3D shapes using A-Frame primitives.
-// Instead of modelUrl, we use geometry (primitive), material (color), and scale.
+// This file defines a global array 'pois' for AR.js Maps Tour.
+// It contains 3 Points of Interest (POIs) in Sergipe, Brazil.
+// Each POI has latitude, longitude, name, description, and a model with geometry and material.
+// The array is declared with 'const' and is accessible from the global scope.
 
-// Array of POIs - easily scalable by adding more objects
 const pois = [
   {
-    // POI 1: São Cristóvão - Cube (box primitive)
-    latitude: -10.9211,
-    longitude: -37.1033,
-    name: "São Cristóvão",
-    description: "A historic city in Sergipe, known for its colonial architecture.",
+    latitude: -10.911,
+    longitude: -37.071,
+    name: "Aracaju Cathedral",
+    description: "A historic cathedral in the capital city of Sergipe.",
     modelo: {
-      geometry: {
-        primitive: "box"  // Cube shape
-      },
-      material: {
-        color: "red"  // Red color
-      },
-      scale: "1 1 1"  // Default scale
+      geometry: { primitive: 'box' },
+      material: { color: 'blue' }
     }
   },
   {
-    // POI 2: Aracaju - Sphere
-    latitude: -10.9472,
-    longitude: -37.0731,
-    name: "Aracaju",
-    description: "The capital of Sergipe, featuring beautiful beaches and urban attractions.",
+    latitude: -10.95,
+    longitude: -37.07,
+    name: "Praia do Saco",
+    description: "A beautiful beach in Sergipe known for its natural beauty.",
     modelo: {
-      geometry: {
-        primitive: "sphere"  // Sphere shape
-      },
-      material: {
-        color: "blue"  // Blue color
-      },
-      scale: "1 1 1"  // Default scale
+      geometry: { primitive: 'sphere' },
+      material: { color: 'green' }
     }
   },
   {
-    // POI 3: Laranjeiras - Cylinder
-    latitude: -10.8044,
-    longitude: -37.1683,
-    name: "Laranjeiras",
-    description: "A municipality in Sergipe with rich cultural heritage.",
+    latitude: -10.68,
+    longitude: -37.42,
+    name: "Serra de Itabaiana National Park",
+    description: "A national park in Sergipe with diverse flora and fauna.",
     modelo: {
-      geometry: {
-        primitive: "cylinder"  // Cylinder shape
-      },
-      material: {
-        color: "green"  // Green color
-      },
-      scale: "1 1 1"  // Default scale
+      geometry: { primitive: 'cylinder' },
+      material: { color: 'red' }
     }
   }
 ];
-
-// Export the pois array for use in other modules
-// In a browser environment, you can access it directly or use a module system
-export default pois;
