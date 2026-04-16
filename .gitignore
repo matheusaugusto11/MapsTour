@@ -1,0 +1,29 @@
+node_modules/
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# Build artifacts
+dist/
+build/
+*.min.js
+*.min.css
+
+# Sensitive config files
+.env
+.env.local
+.env.production
+config/secrets.json

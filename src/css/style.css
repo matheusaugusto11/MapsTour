@@ -1,0 +1,103 @@
+/* Reset browser default styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* CSS Custom Properties for colors and typography */
+:root {
+  --primary-color: #007bff; /* Modern blue for primary elements */
+  --secondary-color: #6c757d; /* Gray for secondary elements */
+  --background-color: #f8f9fa; /* Light gray background for mobile-friendly theme */
+  --text-color: #212529; /* Dark text for readability */
+  --accent-color: #28a745; /* Green for accents */
+  --font-family: 'Roboto', sans-serif; /* Modern sans-serif font */
+  --font-size-base: 16px;
+  --line-height: 1.5;
+}
+
+/* Base styles for html and body */
+html {
+  font-size: var(--font-size-base);
+  line-height: var(--line-height);
+  font-family: var(--font-family);
+  color: var(--text-color);
+  background-color: var(--background-color);
+}
+
+body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  overflow-x: hidden; /* Prevent horizontal scroll on mobile */
+}
+
+/* Styles for AR container filling the entire screen */
+#ar-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 1;
+  background-color: var(--background-color);
+}
+
+/* Styles for control elements */
+.control-panel {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(255, 255, 255, 0.9);
+  padding: 10px;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  z-index: 10;
+  display: flex;
+  gap: 10px;
+}
+
+.control-button {
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.3s ease;
+}
+
+.control-button:hover {
+  background-color: var(--accent-color);
+}
+
+/* Base responsive styles */
+@media (max-width: 768px) {
+  .control-panel {
+    bottom: 10px;
+    padding: 8px;
+    gap: 8px;
+  }
+
+  .control-button {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .control-panel {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .control-button {
+    width: 100%;
+    max-width: 150px;
+  }
+}

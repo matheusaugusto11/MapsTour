@@ -1,157 +1,44 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebAR Maps Tour</title>
+    <title>AR.js Maps Tour</title>
+    <!-- Link to CSS files -->
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="components.css">
+    <link rel="stylesheet" href="responsive.css">
+    <!-- AR.js library via CDN -->
+    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+    <!-- Three.js dependency for AR.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/DRACOLoader.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-    <script src="https://raw.githack.com/AR-js-org/AR.js/master/three.js/build/ar.js"></script>
-    <style>
-        body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; }
-        #startButton { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 20px; font-size: 24px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 10px; }
-        #info { position: absolute; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 5px; }
-    </style>
 </head>
 <body>
-    <div id="info">Toque na tela para colocar placas de tour. Use WebXR AR.</div>
-    <button id="startButton">Iniciar Tour AR</button>
-    <script>
-        // Verificar suporte a WebXR
-        let xrSupported = navigator.xr && navigator.xr.isSessionSupported;
-        let arjsFallback = false;
-
-        // Fallback para AR.js em iOS
-        if (!xrSupported || /iPad|iPhone|iPod/.test(navigator.userAgent)) {
-            arjsFallback = true;
-            // Inicializar AR.js
-            AFRAME.registerComponent('markerhandler', {
-                init: function() {
-                    this.el.sceneEl.addEventListener('markerFound', () => {
-                        // Lógica para marcador encontrado
-                    });
-                }
-            });
-        }
-
-        const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        <!-- renderer.xr.enabled = true; -->
-        document.body.appendChild(renderer.domElement);
-
-        // Luzes ambientais
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-        scene.add(ambientLight);
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
-        directionalLight.position.set(0, 1, 0);
-        scene.add(directionalLight);
-
-        // Loader GLTF com Draco
-        const loader = new THREE.GLTFLoader();
-        const dracoLoader = new THREE.DRACOLoader();
-        dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.4.1/');
-        loader.setDRACOLoader(dracoLoader);
-
-        // Reticle para hit-test
-        const reticle = new THREE.Mesh(
-            new THREE.RingGeometry(0.15, 0.2, 32).rotateX(-Math.PI / 2),
-            new THREE.MeshBasicMaterial({ color: 0xffffff })
-        );
-        reticle.matrixAutoUpdate = false;
-        reticle.visible = false;
-        scene.add(reticle);
-
-        // Objetos GLB (placeholders públicos)
-        const glbUrls = [
-            'https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf', // Placeholder 1
-            'https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf', // Placeholder 2
-            'https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf'  // Placeholder 3
-        ];
-        const objects = [];
-        let objectIndex = 0;
-
-        // Carregar objetos
-        glbUrls.forEach(url => {
-            loader.load(url, (gltf) => {
-                const obj = gltf.scene;
-                obj.visible = false;
-                scene.add(obj);
-                objects.push(obj);
-            });
-        });
-
-        // Sessão XR
-        let xrSession = null;
-        const startButton = document.getElementById('startButton');
-        startButton.addEventListener('click', async () => {
-            if (arjsFallback) {
-                // Usar AR.js
-                const sceneEl = document.createElement('a-scene');
-                sceneEl.setAttribute('embedded', '');
-                sceneEl.setAttribute('arjs', 'sourceType: webcam; debugUIEnabled: false;');
-                const marker = document.createElement('a-marker');
-                marker.setAttribute('preset', 'hiro');
-                marker.setAttribute('markerhandler', '');
-                sceneEl.appendChild(marker);
-                document.body.appendChild(sceneEl);
-                startButton.style.display = 'none';
-            } else {
-                // WebXR
-                xrSession = await navigator.xr.requestSession('immersive-ar', {
-                    requiredFeatures: ['hit-test']
-                });
-                console.log('Sessão XR iniciada')
-                renderer.xr.setSession(xrSession);
-                startButton.style.display = 'none';
-            }
-        });
-
-        // Hit-test e raycast
-        let hitTestSource = null;
-        renderer.setAnimationLoop((timestamp, frame) => {
-            if (frame && xrSession) {
-                const referenceSpace = renderer.xr.getReferenceSpace();
-                const viewerPose = frame.getViewerPose(referenceSpace);
-
-                if (hitTestSource === null) {
-                    hitTestSource = frame.session.requestHitTestSource({ space: viewerPose.views[0].projectionMatrix });
-                }
-
-                if (hitTestSource) {
-                    const hitTestResults = frame.getHitTestResults(hitTestSource);
-                    if (hitTestResults.length > 0) {
-                        const hit = hitTestResults[0];
-                        const pose = hit.getPose(referenceSpace);
-                        reticle.visible = true;
-                        reticle.matrix.fromArray(pose.transform.matrix);
-                    } else {
-                        reticle.visible = false;
-                    }
-                }
-            }
-            renderer.render(scene, camera);
-        });
-
-        // Colocação de objetos ao tocar
-        renderer.domElement.addEventListener('click', (event) => {
-            if (reticle.visible && objects[objectIndex]) {
-                const obj = objects[objectIndex];
-                obj.position.setFromMatrixPosition(reticle.matrix);
-                obj.visible = true;
-                objectIndex = (objectIndex + 1) % objects.length;
-            }
-        });
-
-        // Redimensionar
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
-    </script>
+    <!-- Main container for AR experience -->
+    <div id="ar-container">
+        <!-- AR camera element -->
+        <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;">
+            <a-camera gps-camera rotation-reader></a-camera>
+            <!-- Placeholder for AR markers or GPS-based POIs -->
+            <a-entity id="poi-container"></a-entity>
+        </a-scene>
+    </div>
+    
+    <!-- UI elements for displaying POI information -->
+    <div id="poi-info" class="hidden">
+        <h2 id="poi-name">POI Name</h2>
+        <p id="poi-description">POI Description</p>
+    </div>
+    
+    <!-- Controls for the AR experience -->
+    <div id="controls">
+        <button id="start-btn">Start Tour</button>
+        <button id="stop-btn" class="hidden">Stop Tour</button>
+    </div>
+    
+    <!-- Link to JavaScript files -->
+    <script src="data.js"></script>
+    <script src="main.js"></script>
 </body>
 </html>

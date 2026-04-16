@@ -1,0 +1,79 @@
+/* Base styles for mobile small (up to 320px) - Mobile-first approach */
+body {
+    font-size: 14px;
+    padding: 10px;
+}
+
+.button {
+    height: 40px;
+    width: 100px;
+    /* Other button styles */
+}
+
+.info-panel {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    right: 10px;
+    /* Other panel styles */
+}
+
+/* Media query for mobile medium (480px and up) */
+@media (min-width: 480px) {
+    body {
+        font-size: 16px;
+        padding: 15px;
+    }
+
+    .button {
+        height: 45px;
+        width: 120px;
+    }
+
+    .info-panel {
+        bottom: 15px;
+        left: 15px;
+        right: 15px;
+    }
+}
+
+/* Media query for tablet (768px and up) */
+@media (min-width: 768px) {
+    body {
+        font-size: 18px;
+        padding: 20px;
+    }
+
+    .button {
+        height: 50px;
+        width: 140px;
+    }
+
+    .info-panel {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        bottom: auto;
+        left: auto;
+        width: 300px;
+    }
+}
+
+/* Media query for desktop (1024px and up) */
+@media (min-width: 1024px) {
+    body {
+        font-size: 20px;
+        padding: 25px;
+    }
+
+    .button {
+        height: 55px;
+        width: 160px;
+    }
+
+    .info-panel {
+        width: 350px;
+        top: 25px;
+        right: 25px;
+    }
+}
