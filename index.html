@@ -5,16 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Maps Tour - Experiência de Realidade Aumentada baseada em Mapas">
     <title>Maps Tour - AR Experience</title>
-    
+
     <!-- CSS Files -->
     <link rel="stylesheet" href="src/css/style.css">
     <link rel="stylesheet" href="src/css/components.css">
     <link rel="stylesheet" href="src/css/responsive.css">
-    
+
     <!-- A-Frame and AR.js -->
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
 </head>
+
 <body>
     <!-- Home Screen -->
     <div id="home-screen" class="screen active" data-screen="home">
@@ -34,8 +35,8 @@
         <button id="exit-ar" class="btn btn-secondary btn-exit" aria-label="Sair da experiência AR">
             <span>✕ Sair</span>
         </button>
-        <a-scene gps-camera>
-            <a-camera></a-camera>
+        <a-scene embedded arjs="sourceType: webcam; sourceWidth: 1280; sourceHeight: 960; displayWidth: 1280; displayHeight: 960; debugUIEnabled: false;">
+            <a-camera gps-camera rotation-reader></a-camera>
         </a-scene>
     </div>
 
