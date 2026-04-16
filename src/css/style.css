@@ -1,126 +1,157 @@
-/* Reset default styles */
+/* Reset de estilos padrão */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
-/* CSS Variables for colors and spacing */
+/* Variáveis CSS para design system moderno */
 :root {
-  --primary-color: #ff6b6b;
-  --secondary-color: #ffa500;
-  --background-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  --text-color: #ffffff;
-  --spacing-small: 10px;
-  --spacing-medium: 20px;
-  --spacing-large: 40px;
-  --font-size-large: 2rem;
-  --font-size-medium: 1.5rem;
-  --font-size-small: 1rem;
-  --border-radius: 10px;
-  --transition-duration: 0.3s;
+  --primary-color: #4a90e2;
+  --secondary-color: #7b68ee;
+  --accent-color: #00d4aa;
+  --text-primary: #333;
+  --text-secondary: #666;
+  --bg-gradient-start: #4a90e2;
+  --bg-gradient-end: #7b68ee;
+  --spacing-small: 8px;
+  --spacing-medium: 16px;
+  --spacing-large: 24px;
+  --font-family: 'Roboto', sans-serif;
+  --font-size-h1: 2.5rem;
+  --font-size-p: 1rem;
+  --font-size-button: 1.2rem;
+  --border-radius: 12px;
+  --shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
-/* Body configuration */
-body {
-  height: 100vh;
-  width: 100vw;
-  font-family: Arial, sans-serif;
-  overflow: hidden;
-}
-
-/* Home screen styling */
-#home-screen {
+/* Home screen com gradiente de fundo premium */
+.home-screen {
+  min-height: 100vh;
+  background: linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end));
   display: flex;
-  flex-direction: column;
-  justify-content: center;
   align-items: center;
-  height: 100vh;
-  width: 100vw;
-  background: var(--background-gradient);
-  color: var(--text-color);
-  text-align: center;
+  justify-content: center;
   padding: var(--spacing-large);
+  animation: fadeIn 1s ease-in;
 }
 
-#home-screen h1 {
-  font-size: var(--font-size-large);
+/* Card container centralizado com shadow e border-radius */
+.card {
+  background: white;
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+  padding: var(--spacing-large);
+  max-width: 400px;
+  width: 100%;
+  text-align: center;
+  animation: fadeIn 0.8s ease-in;
+}
+
+/* Tipografia clara */
+h1 {
+  font-family: var(--font-family);
+  font-size: var(--font-size-h1);
+  color: var(--text-primary);
   margin-bottom: var(--spacing-medium);
 }
 
-#home-screen p {
-  font-size: var(--font-size-medium);
+p {
+  font-family: var(--font-family);
+  font-size: var(--font-size-p);
+  color: var(--text-secondary);
   margin-bottom: var(--spacing-large);
 }
 
-#home-screen button {
-  font-size: var(--font-size-medium);
+button {
+  font-family: var(--font-family);
+  font-size: var(--font-size-button);
+  background: var(--accent-color);
+  color: white;
+  border: none;
+  border-radius: var(--border-radius);
   padding: var(--spacing-medium) var(--spacing-large);
-  background-color: var(--primary-color);
-  color: var(--text-color);
-  border: none;
-  border-radius: var(--border-radius);
   cursor: pointer;
-  transition: background-color var(--transition-duration);
+  transition: background 0.3s ease;
 }
 
-#home-screen button:hover {
-  background-color: var(--secondary-color);
+button:hover {
+  background: darken(var(--accent-color), 10%);
 }
 
-/* AR screen styling */
-#ar-screen {
-  position: absolute;
+/* Transições suaves ao trocar de tela */
+.screen {
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+.screen.hidden {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+/* AR screen ocupando 100% da viewport */
+.ar-screen {
+  position: fixed;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
-}
-
-#ar-screen a-scene {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-}
-
-/* Exit AR button styling */
-#exit-ar {
-  position: absolute;
-  top: var(--spacing-small);
-  right: var(--spacing-small);
+  width: 100vw;
+  height: 100vh;
+  background: black;
   z-index: 1000;
-  background-color: var(--primary-color);
-  color: var(--text-color);
-  padding: var(--spacing-small) var(--spacing-medium);
+}
+
+/* Exit button com hover effect */
+.exit-button {
+  position: absolute;
+  top: var(--spacing-medium);
+  right: var(--spacing-medium);
+  background: rgba(255, 255, 255, 0.8);
+  color: var(--text-primary);
   border: none;
-  border-radius: var(--border-radius);
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  font-size: var(--font-size-small);
-  transition: background-color var(--transition-duration);
+  transition: background 0.3s ease, transform 0.3s ease;
 }
 
-#exit-ar:hover {
-  background-color: var(--secondary-color);
+.exit-button:hover {
+  background: rgba(255, 255, 255, 1);
+  transform: scale(1.1);
 }
 
-/* Media queries for mobile */
-@media (max-width: 768px) {
-  :root {
-    --font-size-large: 2.5rem;
-    --font-size-medium: 2rem;
-    --font-size-small: 1.2rem;
-    --spacing-large: 50px;
-    --spacing-medium: 30px;
+/* Mobile-first responsivo */
+@media (min-width: 768px) {
+  /* Tablet */
+  .card {
+    max-width: 500px;
   }
-
-  #home-screen button {
-    padding: var(--spacing-large) var(--spacing-large);
+  h1 {
+    font-size: 3rem;
   }
+}
 
-  #exit-ar {
-    padding: var(--spacing-medium) var(--spacing-large);
-    font-size: var(--font-size-medium);
+@media (min-width: 1024px) {
+  /* Desktop */
+  .card {
+    max-width: 600px;
+  }
+  h1 {
+    font-size: 3.5rem;
+  }
+}
+
+/* Animações de entrada suaves */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
