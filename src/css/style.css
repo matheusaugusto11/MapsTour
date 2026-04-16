@@ -1,76 +1,84 @@
-/* CSS Reset: Resets default browser styles for consistency across devices */
+/* Reset default browser styles to ensure consistency */
 * {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
 }
 
-/* CSS Variables for Theme: Define reusable color and size variables */
+/* Define CSS variables for theme: colors, spacing, and transitions */
 :root {
-  --primary-color: #007bff;
-  --secondary-color: #6c757d;
-  --background-color: rgba(0, 0, 0, 0.7);
-  --text-color: #ffffff;
-  --button-padding: 10px 20px;
-  --border-radius: 5px;
-  --transition-duration: 0.3s;
+    --primary-color: #007bff; /* Blue for buttons */
+    --secondary-color: rgba(0, 0, 0, 0.7); /* Semi-transparent black for panel */
+    --text-color: #ffffff; /* White text */
+    --spacing-small: 10px;
+    --spacing-medium: 20px;
+    --transition-fast: 0.3s ease;
 }
 
-/* A-Frame Scene Styles: Ensures the AR scene takes up the full screen */
+/* Configure body to occupy 100% of the screen */
 body {
-  width: 100vw;
-  height: 100vh;
-  overflow: hidden;
-  font-family: Arial, sans-serif;
-  display: flex;
-  flex-direction: column;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden; /* Prevent scrolling */
+    font-family: Arial, sans-serif; /* Basic font */
 }
 
-/* Info Panel Styles: Positioned at the bottom with semi-transparent background, using flexbox for layout */
-#info-panel {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background-color: var(--background-color);
-  color: var(--text-color);
-  padding: 20px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  z-index: 10;
-  transition: all var(--transition-duration) ease;
+/* Style a-scene to occupy maximum space */
+a-scene {
+    width: 100%;
+    height: 100%;
+    display: block;
 }
 
-/* Control Buttons Styles: Styles for start-tour and stop-tour buttons */
-#start-tour, #stop-tour {
-  background-color: var(--primary-color);
-  color: var(--text-color);
-  border: none;
-  padding: var(--button-padding);
-  border-radius: var(--border-radius);
-  cursor: pointer;
-  font-size: 16px;
-  transition: background-color var(--transition-duration) ease;
+/* Style #info-panel positioned at the bottom with semi-transparent background */
+/* #info-panel {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: var(--secondary-color);
+    color: var(--text-color);
+    padding: var(--spacing-medium);
+    text-align: center;
+    z-index: 10;
+}*/
+
+/* Style buttons #start-btn and #stop-btn */
+#start-btn, #stop-btn {
+    background-color: var(--primary-color);
+    color: var(--text-color);
+    border: none;
+    padding: var(--spacing-small) var(--spacing-medium);
+    margin: 0 var(--spacing-small);
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color var(--transition-fast);
 }
 
-#start-tour:hover, #stop-tour:hover {
-  background-color: var(--secondary-color);
+#start-btn:hover, #stop-btn:hover {
+    background-color: #0056b3; /* Darker blue on hover */
 }
 
-/* Mobile Full-Screen Readability: Adjusts font sizes and padding for better readability on mobile devices */
+/* Additional styles for a-scene and a-entity if necessary */
+a-scene {
+    /* Ensure AR scene is visible */
+    position: relative;
+}
+
+a-entity {
+    /* Basic styling for entities, if needed */
+    /* No specific styles added unless required */
+}
+
+/* Media queries for mobile */
 @media (max-width: 768px) {
-  #info-panel {
-    padding: 15px;
-    font-size: 14px;
-  }
-  #start-tour, #stop-tour {
-    font-size: 14px;
-    padding: 8px 16px;
-  }
-}
+    #info-panel {
+        padding: var(--spacing-small);
+        font-size: 14px; /* Smaller text on mobile */
+    }
 
-/* Smooth Transitions: Applied globally for smooth animations */
-* {
-  transition: all var(--transition-duration) ease;
+    #start-btn, #stop-btn {
+        padding: var(--spacing-small);
+        font-size: 14px; /* Smaller buttons */
+    }
 }
