@@ -39,9 +39,61 @@
         <!-- 🆕 PAINEL HUD COM GPS -->
         <div id="gps-display" class="gps-display"></div>
         
-        <a-scene gps-camera>
-            <!-- AR content can be added here -->
-        </a-scene>
+    <a-scene gps-camera>
+        <!-- POI 1: Casa -->
+        <a-gps-entity-place id="poi1" latitude="-10.9452" longitude="-37.0941">
+            <a-cone 
+                radius-bottom="0.6" 
+                radius-top="0" 
+                height="2.5" 
+                position="0 4 0" 
+                color="#0066FF"
+                material="emissive: #0066FF; emissiveIntensity: 0.5;">
+            </a-cone>
+            <a-box 
+                scale="2 2 2" 
+                position="0 1 0" 
+                color="#0066FF"
+                material="emissive: #0066FF; emissiveIntensity: 0.4;">
+            </a-box>
+        </a-gps-entity-place>
+
+        <!-- POI 2: Praia do Saco (Verde) -->
+        <a-gps-entity-place id="poi2" latitude="-10.9510" longitude="-37.0715">
+            <a-cone 
+                radius-bottom="0.6" 
+                radius-top="0" 
+                height="2.5" 
+                position="0 4 0" 
+                color="#00FF00"
+                material="emissive: #00FF00; emissiveIntensity: 0.5;">
+            </a-cone>
+            <a-box 
+                scale="2 2 2" 
+                position="0 1 0" 
+                color="#00FF00"
+                material="emissive: #00FF00; emissiveIntensity: 0.4;">
+            </a-box>
+        </a-gps-entity-place>
+
+        <!-- POI 3: Serra de Itabaiana National Park (Vermelho) -->
+        <a-gps-entity-place id="poi3" latitude="-10.2619" longitude="-37.1700">
+            <a-cone 
+                radius-bottom="0.6" 
+                radius-top="0" 
+                height="2.5" 
+                position="0 4 0" 
+                color="#FF0000"
+                material="emissive: #FF0000; emissiveIntensity: 0.5;">
+            </a-cone>
+            <a-box 
+                scale="2 2 2" 
+                position="0 1 0" 
+                color="#FF0000"
+                material="emissive: #FF0000; emissiveIntensity: 0.4;">
+            </a-box>
+        </a-gps-entity-place>
+    </a-scene>
     </div>
 
     <!-- Scripts -->

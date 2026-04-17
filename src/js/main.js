@@ -372,7 +372,7 @@ document.getElementById('start-experience').addEventListener('click', function()
         toggleScreens('ar');
         createHUDPanel();
         startGPSMonitoring();
-        createPOIs();
+        // createPOIs();
         
         // Criar seta após 1 segundo
         setTimeout(() => {
