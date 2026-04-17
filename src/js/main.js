@@ -1,8 +1,120 @@
 // main.js for AR.js Maps Tour
-// Manages screen transitions and POI creation/removal with GPS support
+// Manages screen transitions, POI creation/removal, and real-time GPS monitoring
 // Compatible with A-Frame 1.4.2 and AR.js master
 
 console.log('🚀 main.js carregou');
+
+// ========================================
+// GLOBAL VARIABLES
+// ========================================
+
+let watchId = null;
+let userLocation = { latitude: 0, longitude: 0, accuracy: 0 };
+
+// ========================================
+// HAVERSINE DISTANCE CALCULATION
+// ========================================
+
+function calculateDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371; // Raio da Terra em km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    
+    const a = 
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const distance = R * c; // em km
+    
+    return distance;
+}
+
+function formatDistance(distanceKm) {
+    if (distanceKm < 1) {
+        return `${(distanceKm * 1000).toFixed(0)} m`;
+    } else {
+        return `${distanceKm.toFixed(2)} km`;
+    }
+}
+
+// ========================================
+// GPS MONITORING
+// ========================================
+
+function startGPSMonitoring() {
+    console.log('🌍 Iniciando monitoramento de GPS...');
+    
+    if (!navigator.geolocation) {
+        console.error('❌ Geolocalização não suportada neste navegador');
+        return;
+    }
+    
+    watchId = navigator.geolocation.watchPosition(
+        function(position) {
+            userLocation.latitude = position.coords.latitude;
+            userLocation.longitude = position.coords.longitude;
+            userLocation.accuracy = position.coords.accuracy;
+            
+            console.log(`📍 GPS Atualizado: ${userLocation.latitude.toFixed(6)}, ${userLocation.longitude.toFixed(6)} (±${userLocation.accuracy.toFixed(0)}m)`);
+            
+            // Atualizar painel HUD
+            updateGPSDisplay();
+        },
+        function(error) {
+            console.warn(`⚠️  Erro de GPS: ${error.message}`);
+            if (error.code === 1) {
+                console.log('   - Permissão negada. Verifique as configurações de localização.');
+            }
+        },
+        {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+        }
+    );
+}
+
+function stopGPSMonitoring() {
+    if (watchId !== null) {
+        navigator.geolocation.clearWatch(watchId);
+        console.log('🛑 Monitoramento de GPS parado');
+        watchId = null;
+    }
+}
+
+function updateGPSDisplay() {
+    const gpsDisplay = document.getElementById('gps-display');
+    
+    if (!gpsDisplay) {
+        console.warn('⚠️  Elemento #gps-display não encontrado');
+        return;
+    }
+    
+    if (typeof pois !== 'undefined' && pois.length > 0) {
+        const distance = calculateDistance(
+            userLocation.latitude,
+            userLocation.longitude,
+            pois[0].latitude,
+            pois[0].longitude
+        );
+        
+        const formattedDistance = formatDistance(distance);
+        
+        gpsDisplay.innerHTML = `
+            <div class="gps-info">
+                <p><strong>📍 Sua Localização</strong></p>
+                <p>Lat: <span>${userLocation.latitude.toFixed(6)}</span></p>
+                <p>Lon: <span>${userLocation.longitude.toFixed(6)}</span></p>
+                <p>Precisão: <span>±${userLocation.accuracy.toFixed(0)}m</span></p>
+                <hr>
+                <p><strong>📌 Distância até ${pois[0].name}</strong></p>
+                <p class="distance"><span>${formattedDistance}</span></p>
+            </div>
+        `;
+    }
+}
 
 // ========================================
 // EVENT LISTENERS
@@ -26,9 +138,6 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('✅ a-scene carregada e pronta');
         });
     }
-    
-    // Detectar permissão de geolocalização
-    detectGeolocationPermission();
 });
 
 // Event listener para o botão "Iniciar Tour AR"
@@ -37,6 +146,7 @@ document.getElementById('start-experience').addEventListener('click', function()
     
     try {
         toggleScreens('ar');
+        startGPSMonitoring();
         createPOIs();
         console.log('✅ AR iniciado com sucesso');
     } catch (error) {
@@ -49,6 +159,7 @@ document.getElementById('exit-ar').addEventListener('click', function() {
     console.log('➤ Botão "Sair" clicado');
     
     try {
+        stopGPSMonitoring();
         removePOIs();
         toggleScreens('home');
         console.log('✅ AR encerrado com sucesso');
@@ -80,45 +191,6 @@ function toggleScreens(screen) {
     } catch (error) {
         console.error('❌ Erro em toggleScreens:', error);
     }
-}
-
-// ========================================
-// GEOLOCATION
-// ========================================
-
-function detectGeolocationPermission() {
-    console.log('🌍 Detectando permissão de geolocalização...');
-    
-    if (!navigator.geolocation) {
-        console.error('❌ Geolocalização não é suportada neste navegador');
-        return;
-    }
-    
-    // Tentar obter a posição atual
-    navigator.geolocation.getCurrentPosition(
-        function(position) {
-            const lat = position.coords.latitude;
-            const lon = position.coords.longitude;
-            const accuracy = position.coords.accuracy;
-            
-            console.log(`✅ Geolocalização obtida:`);
-            console.log(`   - Latitude: ${lat}`);
-            console.log(`   - Longitude: ${lon}`);
-            console.log(`   - Precisão: ${accuracy}m`);
-        },
-        function(error) {
-            console.warn(`⚠️  Erro ao obter geolocalização: ${error.message}`);
-            console.log('   - Código de erro:', error.code);
-            if (error.code === 1) {
-                console.log('   - Permissão de geolocalização foi negada pelo usuário');
-            }
-        },
-        {
-            enableHighAccuracy: true,
-            timeout: 5000,
-            maximumAge: 0
-        }
-    );
 }
 
 // ========================================
@@ -154,7 +226,7 @@ function createPOIs() {
             entity.setAttribute('position', '0 0 0');
             entity.id = `poi-${index}`;
             
-            // Adicionar label de texto (opcional)
+            // Adicionar label de texto
             entity.setAttribute('text', `value: ${poi.name}; align: center; anchor: center; side: double; color: white;`);
             
             // Adicionar entidade dentro da GPS entity
