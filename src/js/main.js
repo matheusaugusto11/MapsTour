@@ -333,17 +333,17 @@ function toggleScreens(screen) {
 // ===== POI MANAGEMENT =====
 
 function createPOIs() {
-    debugLog('Criando POIs...', 'info');
+    debugLog('info', 'Criando POIs...');
     
     const scene = document.querySelector('a-scene');
     if (!scene) {
-        debugLog('a-scene não encontrada', 'error');
+        debugLog('error', 'a-scene não encontrada');
         return;
     }
     
     pois.forEach((poi, index) => {
         try {
-            debugLog(`POI ${index}: ${poi.name}`, 'info');
+            debugLog('info', `POI ${index}: ${poi.name}`);
             
             const gpsEntity = document.createElement('a-gps-entity-place');
             gpsEntity.setAttribute('latitude', poi.latitude);
@@ -360,14 +360,17 @@ function createPOIs() {
             gpsEntity.appendChild(entity);
             scene.appendChild(gpsEntity);
             
-            debugLog(`  ✅ ${poi.name} criado`, 'success');
+            debugLog('success', `${poi.name} criado`);
             
         } catch (error) {
-            debugLog(`  ❌ Erro: ${error.message}`, 'error');
+            debugLog('error', `POI ${index}: ${error.message}`);
         }
     });
     
-    inspectScene();
+    // 🆕 CRIAR SETA GUIA APÓS CRIAR OS POIs
+    setTimeout(() => {
+        createArrowGuide();
+    }, 1000);
 }
 
 function removePOIs() {
@@ -386,3 +389,110 @@ function removePOIs() {
     
     debugLog(`Removidos ${gpsEntities.length} POIs`, 'success');
 }
+
+// ===== ARROW GUIDE TO POI =====
+
+function createArrowGuide() {
+    debugLog('info', 'Criando seta guia para POI[0]...');
+    
+    const camera = document.querySelector('a-camera[gps-camera]');
+    if (!camera) {
+        debugLog('error', 'Câmera GPS não encontrada');
+        return;
+    }
+    
+    // Criar entidade container da seta
+    const arrow = document.createElement('a-entity');
+    arrow.id = 'arrow-guide';
+    arrow.setAttribute('position', '0 0 -2'); // À frente da câmera
+    arrow.setAttribute('scale', '2 2 4');
+    
+    // Haste (cilindro)
+    const shaft = document.createElement('a-cylinder');
+    shaft.setAttribute('height', '1');
+    shaft.setAttribute('radius', '0.1');
+    shaft.setAttribute('color', 'red');
+    shaft.setAttribute('position', '0 0 -0.5');
+    
+    // Ponta (cone)
+    const tip = document.createElement('a-cone');
+    tip.setAttribute('height', '0.5');
+    tip.setAttribute('radius-bottom', '0.2');
+    tip.setAttribute('color', 'red');
+    tip.setAttribute('position', '0 0 0.5');
+    
+    // Adicionar componentes à seta
+    arrow.appendChild(shaft);
+    arrow.appendChild(tip);
+    
+    // Adicionar seta à câmera
+    camera.appendChild(arrow);
+    
+    debugLog('success', 'Seta guia criada');
+    
+    // Registrar componente de atualização
+    AFRAME.registerComponent('update-arrow', {
+        tick: function() {
+            if (typeof pois === 'undefined' || pois.length === 0) return;
+            if (userLocation.latitude === 0) return;
+            
+            const poi = pois[0];
+            const bearing = calculateBearing(
+                userLocation.latitude,
+                userLocation.longitude,
+                poi.latitude,
+                poi.longitude
+            );
+            
+            // Rotacionar seta
+            const arrowEntity = document.getElementById('arrow-guide');
+            if (arrowEntity) {
+                arrowEntity.setAttribute('rotation', `0 ${-bearing} 0`);
+                
+                // Calcular distância
+                const distance = calculateDistance(
+                    userLocation.latitude,
+                    userLocation.longitude,
+                    poi.latitude,
+                    poi.longitude
+                );
+                
+                // Mudar cor baseado na distância
+                const shaftEl = arrowEntity.querySelector('a-cylinder');
+                const tipEl = arrowEntity.querySelector('a-cone');
+                let color = 'red';
+                
+                if (distance < 0.1) { // Menos de 100m
+                    color = 'lime';
+                } else if (distance < 0.5) { // Menos de 500m
+                    color = 'yellow';
+                } else if (distance < 1) { // Menos de 1km
+                    color = 'orange';
+                } else {
+                    color = 'red';
+                }
+                
+                shaftEl.setAttribute('color', color);
+                tipEl.setAttribute('color', color);
+            }
+        }
+    });
+    
+    // Adicionar componente ao documento (para tick executar)
+    document.body.setAttribute('update-arrow', '');
+}
+
+function calculateBearing(lat1, lon1, lat2, lon2) {
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const lat1Rad = lat1 * Math.PI / 180;
+    const lat2Rad = lat2 * Math.PI / 180;
+    
+    const y = Math.sin(dLon) * Math.cos(lat2Rad);
+    const x = Math.cos(lat1Rad) * Math.sin(lat2Rad) - 
+              Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(dLon);
+    
+    const bearing = Math.atan2(y, x) * 180 / Math.PI;
+    return (bearing + 360) % 360;
+}
+
+// ===== FIM ARROW GUIDE =====
