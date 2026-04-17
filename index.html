@@ -3,101 +3,174 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Maps Tour - Experiência de Realidade Aumentada baseada em Mapas">
-    <title>Maps Tour - AR Experience</title>
-
-    <!-- CSS Files -->
-    <link rel="stylesheet" href="src\css\style.css">
-    <link rel="stylesheet" href="src\css\components.css">
-    <link rel="stylesheet" href="src\css\responsive.css">
-
-    <!-- A-Frame and AR.js -->
+    <title>AR Maps Tour - Test</title>
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            width: 100%;
+            height: 100vh;
+            overflow: hidden;
+            background: black;
+        }
+        #hud {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.9);
+            color: #00ff00;
+            padding: 15px;
+            border: 2px solid #00ff00;
+            border-radius: 8px;
+            font-family: "Courier New", monospace;
+            font-size: 14px;
+            z-index: 9999;
+            line-height: 1.6;
+        }
+        #controls {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 9999;
+            display: flex;
+            gap: 10px;
+        }
+        button {
+            padding: 12px 24px;
+            font-size: 16px;
+            background: #00ff00;
+            color: black;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:active {
+            opacity: 0.7;
+        }
+    </style>
 </head>
-
 <body>
-    <!-- Home Screen -->
-    <div id="home-screen" class="screen active" data-screen="home">
-        <div class="home-container">
-            <div class="home-content">
-                <h1 class="home-title">Maps Tour</h1>
-                <p class="home-description">Explore pontos de interesse em realidade aumentada. Descubra locais históricos e culturais através de uma experiência imersiva e interativa.</p>
-                <button id="start-experience" class="btn btn-primary btn-large">
-                    <span>Iniciar Tour AR</span>
-                </button>
-            </div>
-        </div>
+    <div id="hud">
+        <div>📍 GPS Status: <span id="gps-status">Aguardando...</span></div>
+        <div>Lat: <span id="gps-lat">--</span></div>
+        <div>Lon: <span id="gps-lon">--</span></div>
+        <div>Debug: <span id="debug-info">Carregando...</span></div>
     </div>
 
-    <!-- AR Screen -->
-    <div id="ar-screen" style="display: none;">
-        <button id="exit-ar" class="btn btn-secondary btn-exit" aria-label="Sair da experiência AR">
-            <span>✕ Sair</span>
-        </button>
+    <div id="controls">
+        <button id="start-btn">▶️ Iniciar</button>
+        <button id="stop-btn">⏹️ Parar</button>
+    </div>
+
+    <a-scene 
+        embedded 
+        arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono; matrixCodeType: 3x3;"
+        vr-mode-ui="enabled: false"
+        id="ar-scene">
         
-        <!-- 🆕 PAINEL HUD COM GPS -->
-        <div id="gps-display" class="gps-display"></div>
-        
-    <a-scene gps-camera>
-        <!-- POI 1: Casa -->
-        <a-gps-entity-place id="poi1" latitude="-10.9452" longitude="-37.0941">
-            <a-cone 
-                radius-bottom="0.6" 
-                radius-top="0" 
-                height="2.5" 
-                position="0 4 0" 
-                color="#0066FF"
-                material="emissive: #0066FF; emissiveIntensity: 0.5;">
-            </a-cone>
-            <a-box 
-                scale="2 2 2" 
-                position="0 1 0" 
-                color="#0066FF"
-                material="emissive: #0066FF; emissiveIntensity: 0.4;">
+        <a-camera gps-camera rotation-reader></a-camera>
+
+        <!-- POI 1: Aracaju Cathedral (Azul) - 5 metros à frente -->
+        <a-gps-entity-place latitude="-10.9145" longitude="-37.0708">
+            <a-box color="#0066FF" scale="2 2 2" position="0 1 0">
+                <a-animation attribute="rotation" from="0 0 0" to="0 360 0" dur="4000" repeat="indefinite"></a-animation>
             </a-box>
         </a-gps-entity-place>
 
         <!-- POI 2: Praia do Saco (Verde) -->
-        <a-gps-entity-place id="poi2" latitude="-10.9510" longitude="-37.0715">
-            <a-cone 
-                radius-bottom="0.6" 
-                radius-top="0" 
-                height="2.5" 
-                position="0 4 0" 
-                color="#00FF00"
-                material="emissive: #00FF00; emissiveIntensity: 0.5;">
-            </a-cone>
-            <a-box 
-                scale="2 2 2" 
-                position="0 1 0" 
-                color="#00FF00"
-                material="emissive: #00FF00; emissiveIntensity: 0.4;">
+        <a-gps-entity-place latitude="-10.9510" longitude="-37.0715">
+            <a-box color="#00FF00" scale="2 2 2" position="0 1 0">
+                <a-animation attribute="rotation" from="0 0 0" to="0 360 0" dur="4000" repeat="indefinite"></a-animation>
             </a-box>
         </a-gps-entity-place>
 
-        <!-- POI 3: Serra de Itabaiana National Park (Vermelho) -->
-        <a-gps-entity-place id="poi3" latitude="-10.2619" longitude="-37.1700">
-            <a-cone 
-                radius-bottom="0.6" 
-                radius-top="0" 
-                height="2.5" 
-                position="0 4 0" 
-                color="#FF0000"
-                material="emissive: #FF0000; emissiveIntensity: 0.5;">
-            </a-cone>
-            <a-box 
-                scale="2 2 2" 
-                position="0 1 0" 
-                color="#FF0000"
-                material="emissive: #FF0000; emissiveIntensity: 0.4;">
+        <!-- POI 3: Serra de Itabaiana (Vermelho) -->
+        <a-gps-entity-place latitude="-10.2619" longitude="-37.1700">
+            <a-box color="#FF0000" scale="2 2 2" position="0 1 0">
+                <a-animation attribute="rotation" from="0 0 0" to="0 360 0" dur="4000" repeat="indefinite"></a-animation>
             </a-box>
         </a-gps-entity-place>
+
     </a-scene>
-    </div>
 
-    <!-- Scripts -->
-    <script src="src\js\data.js"></script>
-    <script src="src\js\main.js"></script>
+    <script>
+        const gpsLat = document.getElementById('gps-lat');
+        const gpsLon = document.getElementById('gps-lon');
+        const gpsStatus = document.getElementById('gps-status');
+        const debugInfo = document.getElementById('debug-info');
+        const startBtn = document.getElementById('start-btn');
+        const stopBtn = document.getElementById('stop-btn');
+
+        // Log inicial
+        console.log('✅ Página carregada');
+        debugInfo.textContent = '✅ Página pronta';
+
+        // Verificar se a-scene existe
+        const scene = document.getElementById('ar-scene');
+        if (scene) {
+            console.log('✅ a-scene encontrada');
+            debugInfo.textContent = '✅ a-scene OK';
+        } else {
+            console.error('❌ a-scene não encontrada');
+            debugInfo.textContent = '❌ a-scene não encontrada';
+        }
+
+        // Detectar GPS
+        if (navigator.geolocation) {
+            console.log('✅ Geolocation API disponível');
+            navigator.geolocation.watchPosition(
+                (position) => {
+                    const lat = position.coords.latitude;
+                    const lon = position.coords.longitude;
+                    
+                    gpsLat.textContent = lat.toFixed(6);
+                    gpsLon.textContent = lon.toFixed(6);
+                    gpsStatus.textContent = '✅ Ativo';
+                    debugInfo.textContent = '✅ GPS funcionando';
+                    
+                    console.log(`📍 GPS: ${lat.toFixed(6)}, ${lon.toFixed(6)}`);
+                },
+                (error) => {
+                    console.error('❌ Erro GPS:', error.message);
+                    gpsStatus.textContent = `❌ ${error.message}`;
+                    debugInfo.textContent = `❌ Erro: ${error.message}`;
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 0
+                }
+            );
+        } else {
+            console.error('❌ Geolocation não suportada');
+            gpsStatus.textContent = '❌ Não suportada';
+        }
+
+        // Botões
+        startBtn.addEventListener('click', () => {
+            console.log('▶️ Iniciar clicado');
+            debugInfo.textContent = '▶️ AR iniciando...';
+            scene.play();
+        });
+
+        stopBtn.addEventListener('click', () => {
+            console.log('⏹️ Parar clicado');
+            debugInfo.textContent = '⏹️ AR parado';
+            scene.pause();
+        });
+
+        // Log quando scene carrega
+        scene.addEventListener('loaded', () => {
+            console.log('✅ a-scene loaded event disparado');
+            debugInfo.textContent = '✅ Scene carregada!';
+        });
+    </script>
 </body>
 </html>
