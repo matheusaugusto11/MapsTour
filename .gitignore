@@ -27,3 +27,5 @@ build/
 .env.local
 .env.production
 config/secrets.json
+
+src.zip

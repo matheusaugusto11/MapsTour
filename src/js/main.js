@@ -1,23 +1,42 @@
-// main.js for AR.js Maps Tour
-// VERSÃO CORRIGIDA: POIs com GPS funcionando
-// Compatible with A-Frame 1.4.2 and AR.js master
+// main.js for AR.js Maps Tour - DEBUG VERSION
+// Objetivo: Descobrir por que POIs não aparecem
 
 console.log('🚀 main.js carregou');
 
-// ========================================
 // GLOBAL VARIABLES
-// ========================================
-
 let watchId = null;
 let userLocation = { latitude: 0, longitude: 0, accuracy: 0 };
 let hudPanel = null;
 
-// ========================================
-// HUD PANEL CREATION
-// ========================================
+// ===== DEBUG HELPERS =====
+
+function debugLog(message, type = 'info') {
+    const colors = {
+        'info': '#667eea',
+        'success': '#90ee90',
+        'warning': '#ffa500',
+        'error': '#ff6b6b'
+    };
+    const emojis = {
+        'info': 'ℹ️',
+        'success': '✅',
+        'warning': '⚠️',
+        'error': '❌'
+    };
+    
+    console.log(`%c${emojis[type]} ${message}`, `color: ${colors[type]}; font-weight: bold; font-size: 14px;`);
+}
+
+function debugTable(data, label) {
+    console.group(`📊 ${label}`);
+    console.table(data);
+    console.groupEnd();
+}
+
+// ===== HUD PANEL =====
 
 function createHUDPanel() {
-    console.log('🎨 Criando painel HUD...');
+    debugLog('Criando painel HUD...', 'info');
     
     if (hudPanel && hudPanel.parentNode) {
         hudPanel.parentNode.removeChild(hudPanel);
@@ -38,26 +57,23 @@ function createHUDPanel() {
     hudPanel.style.zIndex = '9999';
     hudPanel.style.pointerEvents = 'none';
     hudPanel.style.border = '2px solid #667eea';
-    hudPanel.style.maxWidth = '280px';
+    hudPanel.style.maxWidth = '300px';
     hudPanel.style.boxShadow = '0 4px 16px rgba(102, 126, 234, 0.5)';
     hudPanel.style.lineHeight = '1.8';
     
     hudPanel.innerHTML = `
-        <div style="color: #8b9df7; font-weight: bold; margin-bottom: 10px;">📍 LOCALIZANDO...</div>
-        <div>Aguardando GPS...</div>
+        <div style="color: #8b9df7; font-weight: bold; margin-bottom: 10px;">📍 DEBUG GPS</div>
+        <div>Aguardando localização...</div>
     `;
     
     document.body.appendChild(hudPanel);
-    
-    console.log('✅ Painel HUD criado com sucesso');
+    debugLog('Painel HUD criado', 'success');
 }
 
-// ========================================
-// HAVERSINE DISTANCE CALCULATION
-// ========================================
+// ===== DISTANCE CALCULATION =====
 
 function calculateDistance(lat1, lon1, lat2, lon2) {
-    const R = 6371; // Raio da Terra em km
+    const R = 6371;
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
     
@@ -67,9 +83,7 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
         Math.sin(dLon / 2) * Math.sin(dLon / 2);
     
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    const distance = R * c;
-    
-    return distance;
+    return R * c;
 }
 
 function formatDistance(distanceKm) {
@@ -80,18 +94,13 @@ function formatDistance(distanceKm) {
     }
 }
 
-// ========================================
-// HUD UPDATE
-// ========================================
-
 function updateHUDPanel() {
     if (!hudPanel) return;
     
-    if (userLocation.latitude === 0 && userLocation.longitude === 0) {
+    if (userLocation.latitude === 0) {
         hudPanel.innerHTML = `
-            <div style="color: #8b9df7; font-weight: bold; margin-bottom: 10px;">📍 LOCALIZANDO...</div>
-            <div>Aguardando sinal GPS...</div>
-            <div style="font-size: 11px; color: #aaa; margin-top: 8px;">Ative a localização no navegador</div>
+            <div style="color: #8b9df7; font-weight: bold;">📍 AGUARDANDO GPS</div>
+            <div style="font-size: 11px; margin-top: 8px;">Ative localização no navegador</div>
         `;
         return;
     }
@@ -99,9 +108,8 @@ function updateHUDPanel() {
     let html = `
         <div style="color: #8b9df7; font-weight: bold; margin-bottom: 8px;">📍 SUA LOCALIZAÇÃO</div>
         <div style="font-size: 12px;">
-            <div>Lat: <span style="color: #ffa500; font-weight: bold;">${userLocation.latitude.toFixed(6)}</span></div>
-            <div>Lon: <span style="color: #ffa500; font-weight: bold;">${userLocation.longitude.toFixed(6)}</span></div>
-            <div>Precisão: <span style="color: #90ee90;">±${userLocation.accuracy.toFixed(0)}m</span></div>
+            <div>Lat: <span style="color: #ffa500;">${userLocation.latitude.toFixed(6)}</span></div>
+            <div>Lon: <span style="color: #ffa500;">${userLocation.longitude.toFixed(6)}</span></div>
         </div>
     `;
     
@@ -113,12 +121,10 @@ function updateHUDPanel() {
             pois[0].longitude
         );
         
-        const formattedDistance = formatDistance(distance);
-        
         html += `
             <div style="border-top: 1px solid #667eea; margin-top: 10px; padding-top: 10px;">
-                <div style="color: #ff6b6b; font-weight: bold; margin-bottom: 5px;">📌 ${pois[0].name}</div>
-                <div style="font-size: 14px; font-weight: bold; color: #ff6b6b;">${formattedDistance}</div>
+                <div style="color: #ff6b6b; font-weight: bold;">${pois[0].name}</div>
+                <div style="font-size: 14px; color: #ffa500;">${formatDistance(distance)}</div>
             </div>
         `;
     }
@@ -126,21 +132,17 @@ function updateHUDPanel() {
     hudPanel.innerHTML = html;
 }
 
-// ========================================
-// GPS MONITORING
-// ========================================
+// ===== GPS MONITORING =====
 
 function startGPSMonitoring() {
-    console.log('🌍 Iniciando monitoramento de GPS...');
+    debugLog('Iniciando GPS...', 'info');
     
     if (!navigator.geolocation) {
-        console.error('❌ Geolocalização não suportada neste navegador');
+        debugLog('Geolocalização não suportada', 'error');
         return;
     }
     
-    if (!hudPanel) {
-        createHUDPanel();
-    }
+    if (!hudPanel) createHUDPanel();
     
     watchId = navigator.geolocation.watchPosition(
         function(position) {
@@ -148,12 +150,11 @@ function startGPSMonitoring() {
             userLocation.longitude = position.coords.longitude;
             userLocation.accuracy = position.coords.accuracy;
             
-            console.log(`📍 GPS: ${userLocation.latitude.toFixed(6)}, ${userLocation.longitude.toFixed(6)} (±${userLocation.accuracy.toFixed(0)}m)`);
-            
+            debugLog(`GPS: ${userLocation.latitude.toFixed(6)}, ${userLocation.longitude.toFixed(6)}`, 'success');
             updateHUDPanel();
         },
         function(error) {
-            console.warn(`⚠️  Erro de GPS: ${error.message}`);
+            debugLog(`Erro GPS: ${error.message}`, 'error');
         },
         {
             enableHighAccuracy: true,
@@ -161,56 +162,140 @@ function startGPSMonitoring() {
             maximumAge: 0
         }
     );
-    
-    console.log('✅ GPS monitoring started');
 }
 
 function stopGPSMonitoring() {
     if (watchId !== null) {
         navigator.geolocation.clearWatch(watchId);
-        console.log('🛑 GPS monitoring stopped');
         watchId = null;
     }
 }
 
-// ========================================
-// EVENT LISTENERS
-// ========================================
+// ===== SCENE INSPECTION =====
 
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('📡 DOMContentLoaded: Inicializando aplicação');
+function inspectScene() {
+    debugLog('Inspecionando cena...', 'info');
     
-    if (typeof pois === 'undefined') {
-        console.error('❌ ERRO: pois não está definido');
+    const scene = document.querySelector('a-scene');
+    
+    if (!scene) {
+        debugLog('❌ a-scene NÃO ENCONTRADA', 'error');
+        return false;
+    }
+    
+    debugLog('✅ a-scene encontrada', 'success');
+    
+    const gpsCamera = scene.querySelector('a-camera[gps-camera]');
+    if (gpsCamera) {
+        debugLog('✅ gps-camera encontrada', 'success');
+    } else {
+        debugLog('❌ gps-camera NÃO ENCONTRADA', 'error');
+        debugLog('Procurando por [gps-camera]...', 'warning');
+    }
+    
+    // Listar TODOS os elementos na cena
+    const entities = scene.querySelectorAll('a-entity');
+    debugLog(`Total de a-entity: ${entities.length}`, 'info');
+    
+    const gpsEntities = scene.querySelectorAll('a-gps-entity-place');
+    debugLog(`Total de a-gps-entity-place: ${gpsEntities.length}`, 'info');
+    
+    if (gpsEntities.length > 0) {
+        gpsEntities.forEach((gps, i) => {
+            const lat = gps.getAttribute('latitude');
+            const lon = gps.getAttribute('longitude');
+            debugLog(`  [${i}] GPS Entity: ${lat}, ${lon}`, 'info');
+        });
+    }
+    
+    return true;
+}
+
+// ===== MANUAL POI CREATION PARA TESTE =====
+
+function createTestPOI() {
+    debugLog('Criando POI de TESTE...', 'warning');
+    
+    const scene = document.querySelector('a-scene');
+    if (!scene) {
+        debugLog('Não posso criar POI - a-scene não existe', 'error');
         return;
     }
     
-    console.log('✅ Array pois carregado:', pois.length, 'POIs');
+    // Use a localização atual + offset pequeno para teste
+    const testLat = userLocation.latitude + 0.001; // ~111m de distância
+    const testLon = userLocation.longitude + 0.001;
+    
+    debugLog(`Teste POI criado em: ${testLat}, ${testLon}`, 'info');
+    
+    const gpsEntity = document.createElement('a-gps-entity-place');
+    gpsEntity.setAttribute('latitude', testLat);
+    gpsEntity.setAttribute('longitude', testLon);
+    gpsEntity.id = 'test-poi';
+    
+    const entity = document.createElement('a-box');
+    entity.setAttribute('color', 'yellow');
+    entity.setAttribute('scale', '10 10 10');
+    entity.setAttribute('position', '0 0 0');
+    
+    gpsEntity.appendChild(entity);
+    scene.appendChild(gpsEntity);
+    
+    debugLog('POI de teste adicionado à cena', 'success');
+}
+
+// ===== EVENT LISTENERS =====
+
+document.addEventListener('DOMContentLoaded', function() {
+    debugLog('DOMContentLoaded disparado', 'info');
+    
+    if (typeof pois === 'undefined') {
+        debugLog('pois não está definido', 'error');
+        return;
+    }
+    
+    debugLog(`Array pois carregado: ${pois.length} POIs`, 'success');
+    debugTable(pois, 'POIs Carregados');
     
     const scene = document.querySelector('a-scene');
     if (scene) {
         scene.addEventListener('loaded', function() {
-            console.log('✅ a-scene carregada');
+            debugLog('a-scene loaded event disparado', 'success');
+            inspectScene();
         });
     }
 });
 
 document.getElementById('start-experience').addEventListener('click', function() {
-    console.log('➤ Botão "Iniciar Tour AR" clicado');
+    debugLog('Botão "Iniciar" clicado', 'info');
     
     try {
         toggleScreens('ar');
         createHUDPanel();
         startGPSMonitoring();
-        createPOIs();
-        console.log('✅ AR iniciado');
+        
+        // Aguardar GPS estar ativo
+        setTimeout(() => {
+            debugLog('Criando POIs...', 'info');
+            createPOIs();
+            inspectScene();
+            
+            // Após criar POIs, test com um POI de teste muito perto
+            setTimeout(() => {
+                debugLog('Criando POI de teste (muito perto)', 'warning');
+                createTestPOI();
+                inspectScene();
+            }, 2000);
+        }, 3000);
+        
     } catch (error) {
-        console.error('❌ Erro ao iniciar AR:', error);
+        debugLog(`Erro ao iniciar: ${error.message}`, 'error');
+        console.error(error);
     }
 });
 
 document.getElementById('exit-ar').addEventListener('click', function() {
-    console.log('➤ Botão "Sair" clicado');
+    debugLog('Botão "Sair" clicado', 'info');
     
     try {
         stopGPSMonitoring();
@@ -222,142 +307,82 @@ document.getElementById('exit-ar').addEventListener('click', function() {
             hudPanel = null;
         }
         
-        console.log('✅ AR encerrado');
+        debugLog('AR encerrado', 'success');
     } catch (error) {
-        console.error('❌ Erro ao sair de AR:', error);
+        debugLog(`Erro ao sair: ${error.message}`, 'error');
     }
 });
 
-// ========================================
-// SCREEN MANAGEMENT
-// ========================================
+// ===== SCREEN MANAGEMENT =====
 
 function toggleScreens(screen) {
-    try {
-        console.log(`📡 Alternando para tela: ${screen}`);
-        
-        const homeScreen = document.getElementById('home-screen');
-        const arScreen = document.getElementById('ar-screen');
-        
-        if (screen === 'ar') {
-            homeScreen.style.display = 'none';
-            arScreen.style.display = 'block';
-            console.log('🎬 Tela AR ativada');
-        } else if (screen === 'home') {
-            arScreen.style.display = 'none';
-            homeScreen.style.display = 'block';
-            console.log('🏠 Tela Home ativada');
-        }
-    } catch (error) {
-        console.error('❌ Erro em toggleScreens:', error);
+    const homeScreen = document.getElementById('home-screen');
+    const arScreen = document.getElementById('ar-screen');
+    
+    if (screen === 'ar') {
+        homeScreen.style.display = 'none';
+        arScreen.style.display = 'block';
+        debugLog('Tela AR ativada', 'success');
+    } else {
+        arScreen.style.display = 'none';
+        homeScreen.style.display = 'block';
+        debugLog('Tela Home ativada', 'success');
     }
 }
 
-// ========================================
-// POI MANAGEMENT - VERSÃO CORRIGIDA
-// ========================================
+// ===== POI MANAGEMENT =====
 
 function createPOIs() {
-    console.log('📍 Criando POIs com GPS...');
-    console.log('🔍 Procurando a-scene...');
+    debugLog('Criando POIs...', 'info');
     
     const scene = document.querySelector('a-scene');
-    
     if (!scene) {
-        console.error('❌ a-scene não encontrada!');
+        debugLog('a-scene não encontrada', 'error');
         return;
     }
     
-    console.log('✅ a-scene encontrada');
-    
     pois.forEach((poi, index) => {
         try {
-            console.log(`\n📌 Criando POI ${index + 1}: ${poi.name}`);
-            console.log(`   Coordenadas: ${poi.latitude}, ${poi.longitude}`);
+            debugLog(`POI ${index}: ${poi.name}`, 'info');
             
-            // ✅ CORREÇÃO PRINCIPAL: Usar setAttribute com atributos SEPARADOS
             const gpsEntity = document.createElement('a-gps-entity-place');
-            
-            // Adicionar atributos separados (NÃO em uma string única)
             gpsEntity.setAttribute('latitude', poi.latitude);
             gpsEntity.setAttribute('longitude', poi.longitude);
             gpsEntity.id = `poi-gps-${index}`;
             
-            console.log(`   ✅ a-gps-entity-place criada`);
-            console.log(`   - latitude: ${poi.latitude}`);
-            console.log(`   - longitude: ${poi.longitude}`);
-            
-            // Criar entidade 3D DENTRO da GPS entity
             const entity = document.createElement('a-entity');
             entity.setAttribute('id', `poi-${index}`);
             entity.setAttribute('position', '0 0 0');
             entity.setAttribute('scale', '20 20 20');
-            entity.setAttribute('rotation', '0 0 0');
             entity.setAttribute('geometry', `primitive: ${poi.modelo.geometry.primitive}`);
             entity.setAttribute('material', `color: ${poi.modelo.material.color}`);
             
-            console.log(`   ✅ a-entity criada`);
-            console.log(`   - geometry: ${poi.modelo.geometry.primitive}`);
-            console.log(`   - material color: ${poi.modelo.material.color}`);
-            console.log(`   - scale: 20 20 20`);
-            console.log(`   - position: 0 0 0`);
-            
-            // Adicionar texto (label)
-            entity.setAttribute('text', `value: ${poi.name}; align: center; anchor: center; side: double; color: white; width: 100;`);
-            
-            // ✅ CRITICAL: Adicionar entity DENTRO da gps-entity-place
             gpsEntity.appendChild(entity);
-            
-            console.log(`   ✅ a-entity adicionada dentro da a-gps-entity-place`);
-            
-            // Adicionar à cena
             scene.appendChild(gpsEntity);
             
-            console.log(`   ✅ a-gps-entity-place adicionada à cena`);
-            
-            // Verificar distância
-            const distance = calculateDistance(
-                userLocation.latitude,
-                userLocation.longitude,
-                poi.latitude,
-                poi.longitude
-            );
-            
-            console.log(`   📏 Distância até POI: ${formatDistance(distance)}`);
-            
-            if (distance > 5) {
-                console.warn(`   ⚠️  POI está a ${formatDistance(distance)} - pode não aparecer se estiver muito longe`);
-            }
-            
-            console.log(`✅ POI ${index + 1} criado com SUCESSO\n`);
+            debugLog(`  ✅ ${poi.name} criado`, 'success');
             
         } catch (error) {
-            console.error(`❌ Erro ao criar POI ${index}:`, error);
+            debugLog(`  ❌ Erro: ${error.message}`, 'error');
         }
     });
     
-    console.log(`\n🎉 ${pois.length} POIs criados com GPS!`);
+    inspectScene();
 }
 
 function removePOIs() {
-    console.log('🗑️  Removendo POIs...');
+    debugLog('Removendo POIs...', 'info');
     
     const scene = document.querySelector('a-scene');
-    
     if (!scene) {
-        console.error('❌ a-scene não encontrada');
+        debugLog('a-scene não encontrada', 'error');
         return;
     }
     
-    // Remover todas as a-gps-entity-place
     const gpsEntities = scene.querySelectorAll('a-gps-entity-place');
-    
-    console.log(`🔍 Encontradas ${gpsEntities.length} a-gps-entity-place`);
-    
-    gpsEntities.forEach((entity, index) => {
+    gpsEntities.forEach(entity => {
         scene.removeChild(entity);
-        console.log(`✅ POI ${index + 1} removido`);
     });
     
-    console.log('✅ Todos os POIs removidos!');
+    debugLog(`Removidos ${gpsEntities.length} POIs`, 'success');
 }
