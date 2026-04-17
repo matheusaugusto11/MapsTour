@@ -1,23 +1,31 @@
 // main.js for AR.js Maps Tour
 // Manages screen transitions and POI creation/removal
+// Compatible with A-Frame 1.3.0 and AR.js
 
-console.log('main.js carregou');
-console.log('Número de POIs:', pois.length);
+console.log('🚀 main.js carregou');
 
 // ========================================
 // EVENT LISTENERS
 // ========================================
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOMContentLoaded: Inicializando aplicação');
+    console.log('📡 DOMContentLoaded: Inicializando aplicação');
     
     // Verificar se pois existe
     if (typeof pois === 'undefined') {
-        console.error('ERRO: pois não está definido. Certifique-se de que data.js foi carregado.');
+        console.error('❌ ERRO: pois não está definido. Certifique-se de que data.js foi carregado.');
         return;
     }
     
     console.log('✅ Array pois carregado com sucesso:', pois.length, 'POIs');
+    
+    // Aguardar a-scene estar completamente carregada
+    const scene = document.querySelector('a-scene');
+    if (scene) {
+        scene.addEventListener('loaded', function() {
+            console.log('✅ a-scene carregada e pronta');
+        });
+    }
 });
 
 // Event listener para o botão "Iniciar Tour AR"
@@ -51,19 +59,28 @@ document.getElementById('exit-ar').addEventListener('click', function() {
 // ========================================
 
 function toggleScreens(screen) {
-    console.log(`📡 Alternando para tela: ${screen}`);
-    
-    const homeScreen = document.getElementById('home-screen');
-    const arScreen = document.getElementById('ar-screen');
-    
-    if (screen === 'ar') {
-        homeScreen.classList.remove('active');
-        arScreen.classList.add('active');
-        console.log('🎬 Tela AR ativada');
-    } else if (screen === 'home') {
-        arScreen.classList.remove('active');
-        homeScreen.classList.add('active');
-        console.log('🏠 Tela Home ativada');
+    try{
+        console.log(`📡 Alternando para tela: ${screen}`);
+        
+        const homeScreen = document.getElementById('home-screen');
+        const arScreen = document.getElementById('ar-screen');
+        
+        if (screen === 'ar') {
+            // homeScreen.classList.remove('active');
+            // arScreen.classList.add('active');
+            homeScreen.style.display = 'none';
+            arScreen.style.display = 'block';
+            console.log('🎬 Tela AR ativada');
+        } else if (screen === 'home') {
+            // arScreen.classList.remove('active');
+            // homeScreen.classList.add('active');
+            homeScreen.style.display = 'block';
+            arScreen.style.display = 'none';
+            console.log('🏠 Tela Home ativada');
+        }
+    }
+    catch{
+        console.warn('Parâmetro screen inválido para toggleScreens. Use "home" ou "ar".');
     }
 }
 

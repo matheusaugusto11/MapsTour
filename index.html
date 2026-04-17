@@ -11,8 +11,10 @@
     <link rel="stylesheet" href="src/css/components.css">
     <link rel="stylesheet" href="src/css/responsive.css">
 
-    <!-- A-Frame and AR.js -->
+    <!-- A-Frame 1.4.2 (versão que funcionava originalmente) -->
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    
+    <!-- AR.js master (versão que funcionava originalmente) -->
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
 </head>
 
@@ -35,13 +37,19 @@
         <button id="exit-ar" class="btn btn-secondary btn-exit" aria-label="Sair da experiência AR">
             <span>✕ Sair</span>
         </button>
-        <a-scene embedded arjs="sourceType: webcam; sourceWidth: 1280; sourceHeight: 960; displayWidth: 1280; displayHeight: 960; debugUIEnabled: false;">
-            <a-camera gps-camera rotation-reader></a-camera>
+        <a-scene embedded arjs="sourceType: webcam; sourceWidth:1280; sourceHeight:960; displayWidth: 1280; displayHeight: 960; debugUIEnabled: false;">
+            <a-camera rotation-reader></a-camera>
         </a-scene>
     </div>
 
     <!-- Scripts -->
     <script src="src/js/data.js"></script>
     <script src="src/js/main.js"></script>
+    
+    <!-- Debug -->
+    <script>
+        console.log('✅ index.html carregou com sucesso!');
+        console.log('📍 Versões: A-Frame 1.4.2 + AR.js master');
+    </script>
 </body>
 </html>
