@@ -1,6 +1,6 @@
 // main.js for AR.js Maps Tour
-// Manages screen transitions and POI creation/removal
-// Compatible with A-Frame 1.3.0 and AR.js
+// Manages screen transitions and POI creation/removal with GPS support
+// Compatible with A-Frame 1.4.2 and AR.js master
 
 console.log('🚀 main.js carregou');
 
@@ -26,6 +26,9 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('✅ a-scene carregada e pronta');
         });
     }
+    
+    // Detectar permissão de geolocalização
+    detectGeolocationPermission();
 });
 
 // Event listener para o botão "Iniciar Tour AR"
@@ -59,29 +62,63 @@ document.getElementById('exit-ar').addEventListener('click', function() {
 // ========================================
 
 function toggleScreens(screen) {
-    try{
+    try {
         console.log(`📡 Alternando para tela: ${screen}`);
         
         const homeScreen = document.getElementById('home-screen');
         const arScreen = document.getElementById('ar-screen');
         
         if (screen === 'ar') {
-            // homeScreen.classList.remove('active');
-            // arScreen.classList.add('active');
             homeScreen.style.display = 'none';
             arScreen.style.display = 'block';
             console.log('🎬 Tela AR ativada');
         } else if (screen === 'home') {
-            // arScreen.classList.remove('active');
-            // homeScreen.classList.add('active');
-            homeScreen.style.display = 'block';
             arScreen.style.display = 'none';
+            homeScreen.style.display = 'block';
             console.log('🏠 Tela Home ativada');
         }
+    } catch (error) {
+        console.error('❌ Erro em toggleScreens:', error);
     }
-    catch{
-        console.warn('Parâmetro screen inválido para toggleScreens. Use "home" ou "ar".');
+}
+
+// ========================================
+// GEOLOCATION
+// ========================================
+
+function detectGeolocationPermission() {
+    console.log('🌍 Detectando permissão de geolocalização...');
+    
+    if (!navigator.geolocation) {
+        console.error('❌ Geolocalização não é suportada neste navegador');
+        return;
     }
+    
+    // Tentar obter a posição atual
+    navigator.geolocation.getCurrentPosition(
+        function(position) {
+            const lat = position.coords.latitude;
+            const lon = position.coords.longitude;
+            const accuracy = position.coords.accuracy;
+            
+            console.log(`✅ Geolocalização obtida:`);
+            console.log(`   - Latitude: ${lat}`);
+            console.log(`   - Longitude: ${lon}`);
+            console.log(`   - Precisão: ${accuracy}m`);
+        },
+        function(error) {
+            console.warn(`⚠️  Erro ao obter geolocalização: ${error.message}`);
+            console.log('   - Código de erro:', error.code);
+            if (error.code === 1) {
+                console.log('   - Permissão de geolocalização foi negada pelo usuário');
+            }
+        },
+        {
+            enableHighAccuracy: true,
+            timeout: 5000,
+            maximumAge: 0
+        }
+    );
 }
 
 // ========================================
@@ -89,7 +126,7 @@ function toggleScreens(screen) {
 // ========================================
 
 function createPOIs() {
-    console.log('📍 Criando POIs...');
+    console.log('📍 Criando POIs com GPS...');
     
     const scene = document.querySelector('a-scene');
     
@@ -104,20 +141,30 @@ function createPOIs() {
             const primitive = poi.modelo.geometry.primitive;
             const color = poi.modelo.material.color;
             
-            // Criar entidade
+            // Criar entidade GPS
+            const gpsEntity = document.createElement('a-gps-entity-place');
+            gpsEntity.setAttribute('latitude', poi.latitude);
+            gpsEntity.setAttribute('longitude', poi.longitude);
+            gpsEntity.id = `poi-gps-${index}`;
+            
+            // Criar geometria dentro da entidade GPS
             const entity = document.createElement('a-entity');
             entity.setAttribute('geometry', `primitive: ${primitive}`);
             entity.setAttribute('material', `color: ${color}`);
-            entity.setAttribute('position', '0 0 -5');
+            entity.setAttribute('position', '0 0 0');
             entity.id = `poi-${index}`;
             
-            // Adicionar à cena
-            scene.appendChild(entity);
+            // Adicionar label de texto (opcional)
+            entity.setAttribute('text', `value: ${poi.name}; align: center; anchor: center; side: double; color: white;`);
+            
+            // Adicionar entidade dentro da GPS entity
+            gpsEntity.appendChild(entity);
+            scene.appendChild(gpsEntity);
             
             console.log(`✅ POI ${index} (${poi.name}) criado:`);
             console.log(`   - Geometria: ${primitive}`);
             console.log(`   - Cor: ${color}`);
-            console.log(`   - Posição: 0 0 -5`);
+            console.log(`   - GPS: ${poi.latitude}, ${poi.longitude}`);
             
         } catch (error) {
             console.error(`❌ Erro ao criar POI ${index}:`, error);
@@ -138,10 +185,10 @@ function removePOIs() {
     }
     
     pois.forEach((poi, index) => {
-        const entity = document.getElementById(`poi-${index}`);
+        const gpsEntity = document.getElementById(`poi-gps-${index}`);
         
-        if (entity) {
-            scene.removeChild(entity);
+        if (gpsEntity) {
+            scene.removeChild(gpsEntity);
             console.log(`✅ POI ${index} (${poi.name}) removido`);
         } else {
             console.warn(`⚠️  POI ${index} (${poi.name}) não encontrado para remover`);
