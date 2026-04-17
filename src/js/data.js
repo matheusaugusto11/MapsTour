@@ -6,7 +6,7 @@
 const pois = [
   {
     latitude: -10.911,
-    longitude: -37.071,
+    longitude: -39.071,
     name: "Aracaju Cathedral",
     description: "A historic cathedral in the capital city of Sergipe.",
     modelo: {
@@ -26,7 +26,7 @@ const pois = [
   },
   {
     latitude: -10.68,
-    longitude: -37.42,
+    longitude: -45.42,
     name: "Serra de Itabaiana National Park",
     description: "A national park in Sergipe with diverse flora and fauna.",
     modelo: {

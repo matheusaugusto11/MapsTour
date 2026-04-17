@@ -1,61 +1,152 @@
 // main.js for AR.js Maps Tour
-// Assumes data.js provides a global 'pois' array
+// Manages screen transitions and POI creation/removal
+// Compatible with A-Frame 1.3.0 and AR.js
 
-// On page load, log loading message and number of POIs
+console.log('🚀 main.js carregou');
+
+// ========================================
+// EVENT LISTENERS
+// ========================================
+
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('main.js carregou');
-    console.log('Número de POIs:', pois.length);
-});
-
-// Event listener for start experience button
-document.getElementById('start-experience').addEventListener('click', function() {
-    console.log('Botão #start-experience clicado');
-    // Hide home-screen and show ar-screen
-    document.getElementById('home-screen').style.display = 'none';
-    document.getElementById('ar-screen').style.display = 'block';
-    // Call createPOIs
-    createPOIs();
-});
-
-// Event listener for exit AR button
-document.getElementById('exit-ar').addEventListener('click', function() {
-    console.log('Botão #exit-ar clicado');
-    // Show home-screen and hide ar-screen
-    document.getElementById('home-screen').style.display = 'block';
-    document.getElementById('ar-screen').style.display = 'none';
-    // Call removePOIs
-    removePOIs();
-});
-
-// Function to create POIs
-function createPOIs() {
-    console.log('Criando POIs');
+    console.log('📡 DOMContentLoaded: Inicializando aplicação');
+    
+    // Verificar se pois existe
+    if (typeof pois === 'undefined') {
+        console.error('❌ ERRO: pois não está definido. Certifique-se de que data.js foi carregado.');
+        return;
+    }
+    
+    console.log('✅ Array pois carregado com sucesso:', pois.length, 'POIs');
+    
+    // Aguardar a-scene estar completamente carregada
     const scene = document.querySelector('a-scene');
-    pois.forEach((poi, index) => {
-        // Read geometry primitive and material color
-        const primitive = poi.modelo.geometry.primitive;
-        const color = poi.modelo.material.color;
-        // Create a-entity
-        const entity = document.createElement('a-entity');
-        entity.setAttribute('geometry', `primitive: ${primitive}`);
-        entity.setAttribute('material', `color: ${color}`);
-        entity.setAttribute('position', '0 0 -5');
-        entity.id = `poi-${index}`;
-        // Append to scene
-        scene.appendChild(entity);
-        console.log(`POI ${index} criado com ID poi-${index}`);
-    });
+    if (scene) {
+        scene.addEventListener('loaded', function() {
+            console.log('✅ a-scene carregada e pronta');
+        });
+    }
+});
+
+// Event listener para o botão "Iniciar Tour AR"
+document.getElementById('start-experience').addEventListener('click', function() {
+    console.log('➤ Botão "Iniciar Tour AR" clicado');
+    
+    try {
+        toggleScreens('ar');
+        createPOIs();
+        console.log('✅ AR iniciado com sucesso');
+    } catch (error) {
+        console.error('❌ Erro ao iniciar AR:', error);
+    }
+});
+
+// Event listener para o botão "Sair"
+document.getElementById('exit-ar').addEventListener('click', function() {
+    console.log('➤ Botão "Sair" clicado');
+    
+    try {
+        removePOIs();
+        toggleScreens('home');
+        console.log('✅ AR encerrado com sucesso');
+    } catch (error) {
+        console.error('❌ Erro ao sair de AR:', error);
+    }
+});
+
+// ========================================
+// SCREEN MANAGEMENT
+// ========================================
+
+function toggleScreens(screen) {
+    try{
+        console.log(`📡 Alternando para tela: ${screen}`);
+        
+        const homeScreen = document.getElementById('home-screen');
+        const arScreen = document.getElementById('ar-screen');
+        
+        if (screen === 'ar') {
+            // homeScreen.classList.remove('active');
+            // arScreen.classList.add('active');
+            homeScreen.style.display = 'none';
+            arScreen.style.display = 'block';
+            console.log('🎬 Tela AR ativada');
+        } else if (screen === 'home') {
+            // arScreen.classList.remove('active');
+            // homeScreen.classList.add('active');
+            homeScreen.style.display = 'block';
+            arScreen.style.display = 'none';
+            console.log('🏠 Tela Home ativada');
+        }
+    }
+    catch{
+        console.warn('Parâmetro screen inválido para toggleScreens. Use "home" ou "ar".');
+    }
 }
 
-// Function to remove POIs
-function removePOIs() {
-    console.log('Removendo POIs');
+// ========================================
+// POI MANAGEMENT
+// ========================================
+
+function createPOIs() {
+    console.log('📍 Criando POIs...');
+    
     const scene = document.querySelector('a-scene');
+    
+    if (!scene) {
+        console.error('❌ ERRO: a-scene não encontrada no DOM');
+        return;
+    }
+    
     pois.forEach((poi, index) => {
-        const entity = document.getElementById(`poi-${index}`);
-        if (entity) {
-            scene.removeChild(entity);
-            console.log(`POI ${index} removido`);
+        try {
+            // Extrair dados do modelo
+            const primitive = poi.modelo.geometry.primitive;
+            const color = poi.modelo.material.color;
+            
+            // Criar entidade
+            const entity = document.createElement('a-entity');
+            entity.setAttribute('geometry', `primitive: ${primitive}`);
+            entity.setAttribute('material', `color: ${color}`);
+            entity.setAttribute('position', '0 0 -5');
+            entity.id = `poi-${index}`;
+            
+            // Adicionar à cena
+            scene.appendChild(entity);
+            
+            console.log(`✅ POI ${index} (${poi.name}) criado:`);
+            console.log(`   - Geometria: ${primitive}`);
+            console.log(`   - Cor: ${color}`);
+            console.log(`   - Posição: 0 0 -5`);
+            
+        } catch (error) {
+            console.error(`❌ Erro ao criar POI ${index}:`, error);
         }
     });
+    
+    console.log(`✅ Todos os ${pois.length} POIs foram criados com sucesso!`);
+}
+
+function removePOIs() {
+    console.log('🗑️  Removendo POIs...');
+    
+    const scene = document.querySelector('a-scene');
+    
+    if (!scene) {
+        console.error('❌ ERRO: a-scene não encontrada no DOM');
+        return;
+    }
+    
+    pois.forEach((poi, index) => {
+        const entity = document.getElementById(`poi-${index}`);
+        
+        if (entity) {
+            scene.removeChild(entity);
+            console.log(`✅ POI ${index} (${poi.name}) removido`);
+        } else {
+            console.warn(`⚠️  POI ${index} (${poi.name}) não encontrado para remover`);
+        }
+    });
+    
+    console.log(`✅ Todos os POIs foram removidos com sucesso!`);
 }
