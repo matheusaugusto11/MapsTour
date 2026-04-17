@@ -75,23 +75,6 @@ function createLogPanel() {
     logPanel.style.zIndex = '9998';
     logPanel.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.8)';
     
-    const clearButton = document.createElement('button');
-    clearButton.textContent = '🗑️ Limpar';
-    clearButton.style.width = '100%';
-    clearButton.style.marginBottom = '8px';
-    clearButton.style.padding = '5px';
-    clearButton.style.backgroundColor = '#667eea';
-    clearButton.style.color = 'white';
-    clearButton.style.border = 'none';
-    clearButton.style.borderRadius = '4px';
-    clearButton.style.cursor = 'pointer';
-    clearButton.style.fontSize = '12px';
-    clearButton.onclick = () => {
-        logs = [];
-        updateLogPanel();
-    };
-    logPanel.appendChild(clearButton);
-    
     const logContainer = document.createElement('div');
     logContainer.className = 'log-container';
     logContainer.style.maxHeight = '420px';
