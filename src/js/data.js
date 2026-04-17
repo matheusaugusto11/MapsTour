@@ -3,6 +3,16 @@
 // Each POI has latitude, longitude, name, description, and a model with geometry and material.
 
 const pois = [
+    {
+    latitude: -10.9452,
+    longitude: -37.0941,
+    name: "Casa",
+    description: "A historic cathedral in the capital city of Sergipe, Brazil.",
+    modelo: {
+      geometry: { primitive: 'box' },
+      material: { color: 'blue' }
+    }
+  },
   {
     latitude: -10.9145,
     longitude: -39.0708,
