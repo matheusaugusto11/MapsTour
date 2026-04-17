@@ -448,38 +448,74 @@ function toggleScreens(screen) {
 
 // ===== POI MANAGEMENT =====
 
-function createPOIs() {
-    debugLog('info', 'Criando POIs...');
+// function createPOIs() {
+//     debugLog('info', 'Criando POIs...');
     
-    const scene = document.querySelector('a-scene');
-    if (!scene) {
-        debugLog('error', 'a-scene não encontrada');
+//     const scene = document.querySelector('a-scene');
+//     if (!scene) {
+//         debugLog('error', 'a-scene não encontrada');
+//         return;
+//     }
+    
+//     pois.forEach((poi, index) => {
+//         try {
+//             const gpsEntity = document.createElement('a-gps-entity-place');
+//             gpsEntity.setAttribute('latitude', poi.latitude);
+//             gpsEntity.setAttribute('longitude', poi.longitude);
+//             gpsEntity.id = `poi-gps-${index}`;
+            
+//             const entity = document.createElement('a-entity');
+//             entity.setAttribute('id', `poi-${index}`);
+//             entity.setAttribute('position', '0 0 0');
+//             entity.setAttribute('scale', '20 20 20');
+//             entity.setAttribute('geometry', `primitive: ${poi.modelo.geometry.primitive}`);
+//             entity.setAttribute('material', `color: ${poi.modelo.material.color}`);
+            
+//             gpsEntity.appendChild(entity);
+//             scene.appendChild(gpsEntity);
+            
+//             debugLog('success', `${poi.name} criado`);
+//         } catch (error) {
+//             debugLog('error', `POI ${index}: ${error.message}`);
+//         }
+//     });
+// }
+
+// ===== POI MANAGEMENT - VERSÃO TESTE COM PRIMITIVAS SIMPLES =====
+
+function createPOIs() {
+    // Get the camera element
+    const camera = document.querySelector('a-camera');
+    if (!camera) {
+        console.error('Camera not found');
         return;
     }
-    
-    pois.forEach((poi, index) => {
-        try {
-            const gpsEntity = document.createElement('a-gps-entity-place');
-            gpsEntity.setAttribute('latitude', poi.latitude);
-            gpsEntity.setAttribute('longitude', poi.longitude);
-            gpsEntity.id = `poi-gps-${index}`;
-            
-            const entity = document.createElement('a-entity');
-            entity.setAttribute('id', `poi-${index}`);
-            entity.setAttribute('position', '0 0 0');
-            entity.setAttribute('scale', '20 20 20');
-            entity.setAttribute('geometry', `primitive: ${poi.modelo.geometry.primitive}`);
-            entity.setAttribute('material', `color: ${poi.modelo.material.color}`);
-            
-            gpsEntity.appendChild(entity);
-            scene.appendChild(gpsEntity);
-            
-            debugLog('success', `${poi.name} criado`);
-        } catch (error) {
-            debugLog('error', `POI ${index}: ${error.message}`);
-        }
+
+    // Define POI data
+    const pois = [
+        { id: 'poi1', color: 'blue', position: '0 0 -5' },
+        { id: 'poi2', color: 'green', position: '2 0 -5' },
+        { id: 'poi3', color: 'red', position: '-2 0 -5' }
+    ];
+
+    // Create each POI
+    pois.forEach(poi => {
+        const entity = document.createElement('a-entity');
+        entity.setAttribute('id', poi.id);
+        entity.setAttribute('geometry', 'primitive: box');
+        entity.setAttribute('material', `color: ${poi.color}`);
+        entity.setAttribute('position', poi.position);
+        entity.setAttribute('scale', '10 10 10');
+        
+        // Append as child of camera
+        camera.appendChild(entity);
+        
+        // Log creation
+        console.log(`Created POI: ${poi.id}, color: ${poi.color}, position: ${poi.position}`);
     });
 }
+
+// ===== FIM POI MANAGEMENT =====
 
 function removePOIs() {
     debugLog('info', 'Removendo POIs...');
@@ -552,44 +588,3 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // ===== FIM ARROW TEST =====
-
-// Teste Ultra Simples: Criar Primitiva Vermelha na Câmera
-
-document.addEventListener('DOMContentLoaded', function() {
-    // Aguardar scene carregar completamente
-    setTimeout(() => {
-        console.log('🧪 Iniciando teste de primitiva...');
-        
-        const scene = document.querySelector('a-scene');
-        const camera = document.querySelector('a-camera[gps-camera]');
-        
-        if (!scene) {
-            console.error('❌ ERRO: a-scene não encontrada');
-            return;
-        }
-        
-        if (!camera) {
-            console.error('❌ ERRO: a-camera[gps-camera] não encontrada');
-            return;
-        }
-        
-        console.log('✅ Scene e Camera encontradas');
-        
-        // Criar primitiva simples (a-box)
-        const testBox = document.createElement('a-box');
-        testBox.setAttribute('position', '0 0 -1.5');
-        testBox.setAttribute('color', 'red');
-        testBox.setAttribute('scale', '0.3 0.3 0.3');
-        testBox.id = 'teste-primitiva';
-        
-        // Adicionar diretamente na camera
-        camera.appendChild(testBox);
-        
-        console.log('✅ Box criado e adicionado à camera');
-        console.log('   Position: 0 0 -1.5');
-        console.log('   Color: red');
-        console.log('   Scale: 0.3 0.3 0.3');
-        console.log('\n🎯 Você deve ver um CUBO VERMELHO na sua frente!');
-        
-    }, 2000); // Esperar 2 segundos para a-scene carregar
-});
