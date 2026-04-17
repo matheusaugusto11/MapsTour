@@ -1,4 +1,176 @@
 /* ========================================
+   BUTTONS
+   ======================================== */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-md) var(--spacing-lg);
+  font-family: var(--font-family);
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  border: none;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  transition: var(--transition);
+  box-shadow: var(--shadow-md);
+  position: relative;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+/* Button Primary */
+.btn-primary {
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+  color: var(--text-color);
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, var(--primary-dark) 0%, #4a5ac2 100%);
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-2px);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+/* Button Secondary */
+.btn-secondary {
+  background: rgba(255, 107, 107, 0.9);
+  color: var(--text-color);
+  backdrop-filter: blur(10px);
+}
+
+.btn-secondary:hover {
+  background: rgba(255, 107, 107, 1);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Button Large */
+.btn-large {
+  padding: var(--spacing-lg) var(--spacing-xxl);
+  font-size: var(--font-size-lg);
+  min-width: 250px;
+}
+
+/* Button Exit */
+.btn-exit {
+  position: absolute;
+  top: var(--spacing-md);
+  right: var(--spacing-md);
+  z-index: 1000;
+  padding: var(--spacing-md) var(--spacing-lg);
+  font-size: var(--font-size-sm);
+  min-width: auto;
+}
+
+/* Button Ripple Effect */
+.btn::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+
+.btn:active::after {
+  width: 300px;
+  height: 300px;
+}
+
+/* ========================================
+   CONTAINERS
+   ======================================== */
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--spacing-lg);
+}
+
+.flex-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.flex-column {
+  display: flex;
+  flex-direction: column;
+}
+
+.gap-small {
+  gap: var(--spacing-sm);
+}
+
+.gap-medium {
+  gap: var(--spacing-md);
+}
+
+.gap-large {
+  gap: var(--spacing-lg);
+}
+
+/* ========================================
+   TEXT UTILITIES
+   ======================================== */
+
+.text-center {
+  text-align: center;
+}
+
+.text-bold {
+  font-weight: 700;
+}
+
+.text-light {
+  font-weight: 300;
+}
+
+.text-muted {
+  color: var(--text-secondary);
+}
+
+.text-small {
+  font-size: var(--font-size-sm);
+}
+
+.text-large {
+  font-size: var(--font-size-lg);
+}
+
+/* ========================================
+   VISIBILITY
+   ======================================== */
+
+.hidden {
+  display: none !important;
+}
+
+.visible {
+  display: block !important;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* ========================================
    GPS DISPLAY HUD
    ======================================== */
 
@@ -52,24 +224,4 @@
     color: #ff6b6b;
     font-weight: 900;
     margin-top: 10px;
-}
-
-/* Responsivo */
-@media (max-width: 480px) {
-    .gps-display {
-        top: 60px;
-        left: 10px;
-        right: 10px;
-        max-width: none;
-        font-size: 10px;
-        padding: 10px;
-    }
-    
-    .gps-info span {
-        font-size: 11px;
-    }
-    
-    .gps-info .distance {
-        font-size: 14px;
-    }
 }

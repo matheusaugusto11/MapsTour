@@ -211,3 +211,23 @@
     --text-secondary: #555555;
   }
 }
+
+/* Responsivo */
+@media (max-width: 480px) {
+    .gps-display {
+        top: 60px;
+        left: 10px;
+        right: 10px;
+        max-width: none;
+        font-size: 10px;
+        padding: 10px;
+    }
+    
+    .gps-info span {
+        font-size: 11px;
+    }
+    
+    .gps-info .distance {
+        font-size: 14px;
+    }
+}
