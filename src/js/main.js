@@ -552,3 +552,44 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // ===== FIM ARROW TEST =====
+
+// Teste Ultra Simples: Criar Primitiva Vermelha na Câmera
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Aguardar scene carregar completamente
+    setTimeout(() => {
+        console.log('🧪 Iniciando teste de primitiva...');
+        
+        const scene = document.querySelector('a-scene');
+        const camera = document.querySelector('a-camera[gps-camera]');
+        
+        if (!scene) {
+            console.error('❌ ERRO: a-scene não encontrada');
+            return;
+        }
+        
+        if (!camera) {
+            console.error('❌ ERRO: a-camera[gps-camera] não encontrada');
+            return;
+        }
+        
+        console.log('✅ Scene e Camera encontradas');
+        
+        // Criar primitiva simples (a-box)
+        const testBox = document.createElement('a-box');
+        testBox.setAttribute('position', '0 0 -1.5');
+        testBox.setAttribute('color', 'red');
+        testBox.setAttribute('scale', '0.3 0.3 0.3');
+        testBox.id = 'teste-primitiva';
+        
+        // Adicionar diretamente na camera
+        camera.appendChild(testBox);
+        
+        console.log('✅ Box criado e adicionado à camera');
+        console.log('   Position: 0 0 -1.5');
+        console.log('   Color: red');
+        console.log('   Scale: 0.3 0.3 0.3');
+        console.log('\n🎯 Você deve ver um CUBO VERMELHO na sua frente!');
+        
+    }, 2000); // Esperar 2 segundos para a-scene carregar
+});
