@@ -1,76 +1,161 @@
-// main.js for AR.js Maps Tour - DEBUG VERSION
-// Objetivo: Descobrir por que POIs não aparecem
+// main.js for AR.js Maps Tour - FINAL VERSION
+// Sem painéis duplicados + Seta 3D guia
 
 console.log('🚀 main.js carregou');
 
-// GLOBAL VARIABLES
+// ===== GLOBAL VARIABLES =====
+
 let watchId = null;
 let userLocation = { latitude: 0, longitude: 0, accuracy: 0 };
 let hudPanel = null;
+let logPanel = null;
+let arrowEntity = null;
+let arrowAnimationId = null;
+let logs = [];
+const MAX_LOGS = 15;
+const IS_MOBILE = /Android|webOS|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-// ===== DEBUG HELPERS =====
+// ===== CLEANUP FUNCTION =====
 
-function debugLog(message, type = 'info') {
+function cleanupAllPanels() {
+    // Remover TODOS os painéis antigos
+    const oldHUDs = document.querySelectorAll('#gps-display, #hud-panel, [gps-hud]');
+    oldHUDs.forEach(el => {
+        if (el.parentNode) el.parentNode.removeChild(el);
+    });
+    
+    const oldLogs = document.querySelectorAll('#log-panel, [log-panel]');
+    oldLogs.forEach(el => {
+        if (el.parentNode) el.parentNode.removeChild(el);
+    });
+    
+    hudPanel = null;
+    logPanel = null;
+}
+
+// ===== DEBUG LOGGING =====
+
+function debugLog(type, message) {
+    const timestamp = new Date().toLocaleTimeString();
     const colors = {
         'info': '#667eea',
         'success': '#90ee90',
         'warning': '#ffa500',
         'error': '#ff6b6b'
     };
-    const emojis = {
-        'info': 'ℹ️',
-        'success': '✅',
-        'warning': '⚠️',
-        'error': '❌'
-    };
     
-    console.log(`%c${emojis[type]} ${message}`, `color: ${colors[type]}; font-weight: bold; font-size: 14px;`);
+    console.log(`%c[${timestamp}] ${message}`, `color: ${colors[type]}; font-weight: bold;`);
+    
+    if (IS_MOBILE && logPanel) {
+        const logEntry = { type, message, timestamp };
+        logs.push(logEntry);
+        if (logs.length > MAX_LOGS) logs.shift();
+        updateLogPanel();
+    }
 }
 
-function debugTable(data, label) {
-    console.group(`📊 ${label}`);
-    console.table(data);
-    console.groupEnd();
+function createLogPanel() {
+    if (!IS_MOBILE) return;
+    
+    logPanel = document.createElement('div');
+    logPanel.id = 'log-panel';
+    
+    logPanel.style.position = 'fixed';
+    logPanel.style.top = '20px';
+    logPanel.style.right = '20px';
+    logPanel.style.width = '280px';
+    logPanel.style.maxHeight = '500px';
+    logPanel.style.backgroundColor = 'rgba(0, 0, 0, 0.9)';
+    logPanel.style.border = '2px solid #667eea';
+    logPanel.style.color = 'white';
+    logPanel.style.fontSize = '12px';
+    logPanel.style.padding = '10px';
+    logPanel.style.borderRadius = '8px';
+    logPanel.style.fontFamily = '"Courier New", monospace';
+    logPanel.style.zIndex = '9998';
+    logPanel.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.8)';
+    
+    const clearButton = document.createElement('button');
+    clearButton.textContent = '🗑️ Limpar';
+    clearButton.style.width = '100%';
+    clearButton.style.marginBottom = '8px';
+    clearButton.style.padding = '5px';
+    clearButton.style.backgroundColor = '#667eea';
+    clearButton.style.color = 'white';
+    clearButton.style.border = 'none';
+    clearButton.style.borderRadius = '4px';
+    clearButton.style.cursor = 'pointer';
+    clearButton.style.fontSize = '12px';
+    clearButton.onclick = () => {
+        logs = [];
+        updateLogPanel();
+    };
+    logPanel.appendChild(clearButton);
+    
+    const logContainer = document.createElement('div');
+    logContainer.className = 'log-container';
+    logContainer.style.maxHeight = '420px';
+    logContainer.style.overflowY = 'auto';
+    logContainer.style.lineHeight = '1.4';
+    logPanel.appendChild(logContainer);
+    
+    document.body.appendChild(logPanel);
+}
+
+function updateLogPanel() {
+    if (!logPanel) return;
+    
+    const logContainer = logPanel.querySelector('.log-container');
+    const colors = {
+        'info': '#667eea',
+        'success': '#90ee90',
+        'warning': '#ffa500',
+        'error': '#ff6b6b'
+    };
+    
+    logContainer.innerHTML = logs.map(log => 
+        `<div style="color: ${colors[log.type]}; margin-bottom: 4px;"><span style="font-size: 10px; color: #888;">[${log.timestamp}]</span> ${log.message}</div>`
+    ).join('');
+    
+    logContainer.scrollTop = logContainer.scrollHeight;
 }
 
 // ===== HUD PANEL =====
 
 function createHUDPanel() {
-    debugLog('Criando painel HUD...', 'info');
+    cleanupAllPanels(); // Limpar painéis antigos PRIMEIRO
     
-    if (hudPanel && hudPanel.parentNode) {
-        hudPanel.parentNode.removeChild(hudPanel);
-    }
+    debugLog('info', 'Criando painel HUD...');
     
     hudPanel = document.createElement('div');
     hudPanel.id = 'gps-display';
     
     hudPanel.style.position = 'fixed';
-    hudPanel.style.top = '80px';
+    hudPanel.style.top = IS_MOBILE ? '20px' : '80px';
     hudPanel.style.left = '20px';
     hudPanel.style.backgroundColor = 'rgba(0, 0, 0, 0.9)';
     hudPanel.style.color = '#ffffff';
     hudPanel.style.padding = '15px';
     hudPanel.style.borderRadius = '8px';
-    hudPanel.style.fontSize = '13px';
+    hudPanel.style.fontSize = IS_MOBILE ? '11px' : '13px';
     hudPanel.style.fontFamily = '"Courier New", monospace';
     hudPanel.style.zIndex = '9999';
     hudPanel.style.pointerEvents = 'none';
     hudPanel.style.border = '2px solid #667eea';
-    hudPanel.style.maxWidth = '300px';
+    hudPanel.style.maxWidth = IS_MOBILE ? '250px' : '300px';
     hudPanel.style.boxShadow = '0 4px 16px rgba(102, 126, 234, 0.5)';
     hudPanel.style.lineHeight = '1.8';
     
     hudPanel.innerHTML = `
-        <div style="color: #8b9df7; font-weight: bold; margin-bottom: 10px;">📍 DEBUG GPS</div>
-        <div>Aguardando localização...</div>
+        <div style="color: #8b9df7; font-weight: bold; margin-bottom: 10px;">📍 LOCALIZANDO...</div>
+        <div>Aguardando GPS...</div>
     `;
     
     document.body.appendChild(hudPanel);
-    debugLog('Painel HUD criado', 'success');
+    debugLog('success', 'Painel HUD criado');
 }
 
-// ===== DISTANCE CALCULATION =====
+// ===== DISTANCE & BEARING =====
 
 function calculateDistance(lat1, lon1, lat2, lon2) {
     const R = 6371;
@@ -84,6 +169,19 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
     
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
+}
+
+function calculateBearing(lat1, lon1, lat2, lon2) {
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const lat1Rad = lat1 * Math.PI / 180;
+    const lat2Rad = lat2 * Math.PI / 180;
+    
+    const y = Math.sin(dLon) * Math.cos(lat2Rad);
+    const x = Math.cos(lat1Rad) * Math.sin(lat2Rad) - 
+              Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(dLon);
+    
+    const bearing = Math.atan2(y, x) * 180 / Math.PI;
+    return (bearing + 360) % 360;
 }
 
 function formatDistance(distanceKm) {
@@ -100,14 +198,14 @@ function updateHUDPanel() {
     if (userLocation.latitude === 0) {
         hudPanel.innerHTML = `
             <div style="color: #8b9df7; font-weight: bold;">📍 AGUARDANDO GPS</div>
-            <div style="font-size: 11px; margin-top: 8px;">Ative localização no navegador</div>
+            <div style="font-size: 10px; margin-top: 8px;">Ative localização</div>
         `;
         return;
     }
     
     let html = `
-        <div style="color: #8b9df7; font-weight: bold; margin-bottom: 8px;">📍 SUA LOCALIZAÇÃO</div>
-        <div style="font-size: 12px;">
+        <div style="color: #8b9df7; font-weight: bold; margin-bottom: 8px;">📍 LOCALIZAÇÃO</div>
+        <div style="font-size: 11px;">
             <div>Lat: <span style="color: #ffa500;">${userLocation.latitude.toFixed(6)}</span></div>
             <div>Lon: <span style="color: #ffa500;">${userLocation.longitude.toFixed(6)}</span></div>
         </div>
@@ -123,8 +221,8 @@ function updateHUDPanel() {
         
         html += `
             <div style="border-top: 1px solid #667eea; margin-top: 10px; padding-top: 10px;">
-                <div style="color: #ff6b6b; font-weight: bold;">${pois[0].name}</div>
-                <div style="font-size: 14px; color: #ffa500;">${formatDistance(distance)}</div>
+                <div style="color: #ff6b6b; font-weight: bold; font-size: 11px;">📌 ${pois[0].name}</div>
+                <div style="font-size: 12px; color: #ffa500; font-weight: bold;">${formatDistance(distance)}</div>
             </div>
         `;
     }
@@ -132,17 +230,112 @@ function updateHUDPanel() {
     hudPanel.innerHTML = html;
 }
 
-// ===== GPS MONITORING =====
+// ===== SETA 3D GUIA =====
 
-function startGPSMonitoring() {
-    debugLog('Iniciando GPS...', 'info');
+function createArrow() {
+    debugLog('info', 'Criando seta guia...');
     
-    if (!navigator.geolocation) {
-        debugLog('Geolocalização não suportada', 'error');
+    const camera = document.querySelector('a-camera[gps-camera]');
+    if (!camera) {
+        debugLog('error', 'Câmera GPS não encontrada');
         return;
     }
     
-    if (!hudPanel) createHUDPanel();
+    // Remover seta antiga se existir
+    const oldArrow = document.getElementById('arrow-guide');
+    if (oldArrow && oldArrow.parentNode) {
+        oldArrow.parentNode.removeChild(oldArrow);
+    }
+    
+    // Container da seta
+    arrowEntity = document.createElement('a-entity');
+    arrowEntity.id = 'arrow-guide';
+    arrowEntity.setAttribute('position', '0 0 -1');
+    arrowEntity.setAttribute('scale', '0.5 0.5 0.5');
+    
+    // Haste (cilindro)
+    const shaft = document.createElement('a-cylinder');
+    shaft.setAttribute('height', '1');
+    shaft.setAttribute('radius', '0.1');
+    shaft.setAttribute('color', 'red');
+    shaft.setAttribute('position', '0 -0.3 0');
+    shaft.id = 'arrow-shaft';
+    
+    // Ponta (cone)
+    const tip = document.createElement('a-cone');
+    tip.setAttribute('height', '0.4');
+    tip.setAttribute('radius-bottom', '0.2');
+    tip.setAttribute('color', 'red');
+    tip.setAttribute('position', '0 0.3 0');
+    tip.id = 'arrow-tip';
+    
+    arrowEntity.appendChild(shaft);
+    arrowEntity.appendChild(tip);
+    camera.appendChild(arrowEntity);
+    
+    debugLog('success', 'Seta criada');
+    
+    // Iniciar atualização contínua da seta
+    updateArrow();
+}
+
+function updateArrow() {
+    if (!arrowEntity || typeof pois === 'undefined' || pois.length === 0) {
+        arrowAnimationId = requestAnimationFrame(updateArrow);
+        return;
+    }
+    
+    if (userLocation.latitude === 0) {
+        arrowAnimationId = requestAnimationFrame(updateArrow);
+        return;
+    }
+    
+    const poi = pois[0];
+    const bearing = calculateBearing(
+        userLocation.latitude,
+        userLocation.longitude,
+        poi.latitude,
+        poi.longitude
+    );
+    
+    const distance = calculateDistance(
+        userLocation.latitude,
+        userLocation.longitude,
+        poi.latitude,
+        poi.longitude
+    );
+    
+    // Rotacionar seta
+    arrowEntity.setAttribute('rotation', `0 ${-bearing} 0`);
+    
+    // Mudar cor baseado em distância
+    let color = 'red';
+    if (distance < 0.1) {
+        color = 'lime';
+    } else if (distance < 0.5) {
+        color = 'yellow';
+    } else if (distance < 1) {
+        color = 'orange';
+    }
+    
+    const shaft = document.getElementById('arrow-shaft');
+    const tip = document.getElementById('arrow-tip');
+    
+    if (shaft) shaft.setAttribute('color', color);
+    if (tip) tip.setAttribute('color', color);
+    
+    arrowAnimationId = requestAnimationFrame(updateArrow);
+}
+
+// ===== GPS MONITORING =====
+
+function startGPSMonitoring() {
+    debugLog('info', 'Iniciando GPS...');
+    
+    if (!navigator.geolocation) {
+        debugLog('error', 'Geolocalização não suportada');
+        return;
+    }
     
     watchId = navigator.geolocation.watchPosition(
         function(position) {
@@ -150,11 +343,11 @@ function startGPSMonitoring() {
             userLocation.longitude = position.coords.longitude;
             userLocation.accuracy = position.coords.accuracy;
             
-            debugLog(`GPS: ${userLocation.latitude.toFixed(6)}, ${userLocation.longitude.toFixed(6)}`, 'success');
+            debugLog('success', `GPS: ${userLocation.latitude.toFixed(6)}, ${userLocation.longitude.toFixed(6)}`);
             updateHUDPanel();
         },
         function(error) {
-            debugLog(`Erro GPS: ${error.message}`, 'error');
+            debugLog('error', `Erro GPS: ${error.message}`);
         },
         {
             enableHighAccuracy: true,
@@ -167,149 +360,72 @@ function startGPSMonitoring() {
 function stopGPSMonitoring() {
     if (watchId !== null) {
         navigator.geolocation.clearWatch(watchId);
+        debugLog('info', 'GPS parado');
         watchId = null;
     }
-}
-
-// ===== SCENE INSPECTION =====
-
-function inspectScene() {
-    debugLog('Inspecionando cena...', 'info');
-    
-    const scene = document.querySelector('a-scene');
-    
-    if (!scene) {
-        debugLog('❌ a-scene NÃO ENCONTRADA', 'error');
-        return false;
-    }
-    
-    debugLog('✅ a-scene encontrada', 'success');
-    
-    const gpsCamera = scene.querySelector('a-camera[gps-camera]');
-    if (gpsCamera) {
-        debugLog('✅ gps-camera encontrada', 'success');
-    } else {
-        debugLog('❌ gps-camera NÃO ENCONTRADA', 'error');
-        debugLog('Procurando por [gps-camera]...', 'warning');
-    }
-    
-    // Listar TODOS os elementos na cena
-    const entities = scene.querySelectorAll('a-entity');
-    debugLog(`Total de a-entity: ${entities.length}`, 'info');
-    
-    const gpsEntities = scene.querySelectorAll('a-gps-entity-place');
-    debugLog(`Total de a-gps-entity-place: ${gpsEntities.length}`, 'info');
-    
-    if (gpsEntities.length > 0) {
-        gpsEntities.forEach((gps, i) => {
-            const lat = gps.getAttribute('latitude');
-            const lon = gps.getAttribute('longitude');
-            debugLog(`  [${i}] GPS Entity: ${lat}, ${lon}`, 'info');
-        });
-    }
-    
-    return true;
-}
-
-// ===== MANUAL POI CREATION PARA TESTE =====
-
-function createTestPOI() {
-    debugLog('Criando POI de TESTE...', 'warning');
-    
-    const scene = document.querySelector('a-scene');
-    if (!scene) {
-        debugLog('Não posso criar POI - a-scene não existe', 'error');
-        return;
-    }
-    
-    // Use a localização atual + offset pequeno para teste
-    const testLat = userLocation.latitude + 0.001; // ~111m de distância
-    const testLon = userLocation.longitude + 0.001;
-    
-    debugLog(`Teste POI criado em: ${testLat}, ${testLon}`, 'info');
-    
-    const gpsEntity = document.createElement('a-gps-entity-place');
-    gpsEntity.setAttribute('latitude', testLat);
-    gpsEntity.setAttribute('longitude', testLon);
-    gpsEntity.id = 'test-poi';
-    
-    const entity = document.createElement('a-box');
-    entity.setAttribute('color', 'yellow');
-    entity.setAttribute('scale', '10 10 10');
-    entity.setAttribute('position', '0 0 0');
-    
-    gpsEntity.appendChild(entity);
-    scene.appendChild(gpsEntity);
-    
-    debugLog('POI de teste adicionado à cena', 'success');
 }
 
 // ===== EVENT LISTENERS =====
 
 document.addEventListener('DOMContentLoaded', function() {
-    debugLog('DOMContentLoaded disparado', 'info');
+    debugLog('info', 'DOMContentLoaded');
+    
+    if (IS_MOBILE) {
+        createLogPanel();
+    }
     
     if (typeof pois === 'undefined') {
-        debugLog('pois não está definido', 'error');
+        debugLog('error', 'pois não definido');
         return;
     }
     
-    debugLog(`Array pois carregado: ${pois.length} POIs`, 'success');
-    debugTable(pois, 'POIs Carregados');
-    
-    const scene = document.querySelector('a-scene');
-    if (scene) {
-        scene.addEventListener('loaded', function() {
-            debugLog('a-scene loaded event disparado', 'success');
-            inspectScene();
-        });
-    }
+    debugLog('success', `${pois.length} POIs carregados`);
 });
 
 document.getElementById('start-experience').addEventListener('click', function() {
-    debugLog('Botão "Iniciar" clicado', 'info');
+    debugLog('info', 'Iniciar AR');
     
     try {
         toggleScreens('ar');
         createHUDPanel();
         startGPSMonitoring();
+        createPOIs();
         
-        // Aguardar GPS estar ativo
+        // Criar seta após 1 segundo
         setTimeout(() => {
-            debugLog('Criando POIs...', 'info');
-            createPOIs();
-            inspectScene();
-            
-            // Após criar POIs, test com um POI de teste muito perto
-            setTimeout(() => {
-                debugLog('Criando POI de teste (muito perto)', 'warning');
-                createTestPOI();
-                inspectScene();
-            }, 2000);
-        }, 3000);
+            createArrow();
+        }, 1000);
         
+        debugLog('success', 'AR iniciado');
     } catch (error) {
-        debugLog(`Erro ao iniciar: ${error.message}`, 'error');
-        console.error(error);
+        debugLog('error', `Erro: ${error.message}`);
     }
 });
 
 document.getElementById('exit-ar').addEventListener('click', function() {
-    debugLog('Botão "Sair" clicado', 'info');
+    debugLog('info', 'Sair');
     
     try {
+        // Parar atualização da seta
+        if (arrowAnimationId) {
+            cancelAnimationFrame(arrowAnimationId);
+            arrowAnimationId = null;
+        }
+        
+        // Remover seta
+        if (arrowEntity && arrowEntity.parentNode) {
+            arrowEntity.parentNode.removeChild(arrowEntity);
+            arrowEntity = null;
+        }
+        
         stopGPSMonitoring();
         removePOIs();
         toggleScreens('home');
+        cleanupAllPanels();
         
-        if (hudPanel && hudPanel.parentNode) {
-            hudPanel.parentNode.removeChild(hudPanel);
-            hudPanel = null;
-        }
-        
-        debugLog('AR encerrado', 'success');
+        debugLog('success', 'AR encerrado');
     } catch (error) {
-        debugLog(`Erro ao sair: ${error.message}`, 'error');
+        debugLog('error', `Erro ao sair: ${error.message}`);
     }
 });
 
@@ -322,11 +438,11 @@ function toggleScreens(screen) {
     if (screen === 'ar') {
         homeScreen.style.display = 'none';
         arScreen.style.display = 'block';
-        debugLog('Tela AR ativada', 'success');
+        debugLog('success', 'AR screen ativada');
     } else {
         arScreen.style.display = 'none';
         homeScreen.style.display = 'block';
-        debugLog('Tela Home ativada', 'success');
+        debugLog('success', 'Home screen ativada');
     }
 }
 
@@ -343,8 +459,6 @@ function createPOIs() {
     
     pois.forEach((poi, index) => {
         try {
-            debugLog('info', `POI ${index}: ${poi.name}`);
-            
             const gpsEntity = document.createElement('a-gps-entity-place');
             gpsEntity.setAttribute('latitude', poi.latitude);
             gpsEntity.setAttribute('longitude', poi.longitude);
@@ -361,138 +475,80 @@ function createPOIs() {
             scene.appendChild(gpsEntity);
             
             debugLog('success', `${poi.name} criado`);
-            
         } catch (error) {
             debugLog('error', `POI ${index}: ${error.message}`);
         }
     });
-    
-    // 🆕 CRIAR SETA GUIA APÓS CRIAR OS POIs
-    setTimeout(() => {
-        createArrowGuide();
-    }, 1000);
 }
 
 function removePOIs() {
-    debugLog('Removendo POIs...', 'info');
+    debugLog('info', 'Removendo POIs...');
     
     const scene = document.querySelector('a-scene');
-    if (!scene) {
-        debugLog('a-scene não encontrada', 'error');
-        return;
-    }
+    if (!scene) return;
     
     const gpsEntities = scene.querySelectorAll('a-gps-entity-place');
     gpsEntities.forEach(entity => {
         scene.removeChild(entity);
     });
     
-    debugLog(`Removidos ${gpsEntities.length} POIs`, 'success');
+    debugLog('success', `${gpsEntities.length} POIs removidos`);
 }
 
-// ===== ARROW GUIDE TO POI =====
+// ===== ARROW TEST (ADICIONE NO FINAL DO ARQUIVO) =====
 
-function createArrowGuide() {
-    debugLog('info', 'Criando seta guia para POI[0]...');
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('\n🔍 === INICIANDO TESTE DE SETA ===\n');
     
-    const camera = document.querySelector('a-camera[gps-camera]');
-    if (!camera) {
-        debugLog('error', 'Câmera GPS não encontrada');
-        return;
-    }
-    
-    // Criar entidade container da seta
-    const arrow = document.createElement('a-entity');
-    arrow.id = 'arrow-guide';
-    arrow.setAttribute('position', '0 0 -2'); // À frente da câmera
-    arrow.setAttribute('scale', '2 2 4');
-    
-    // Haste (cilindro)
-    const shaft = document.createElement('a-cylinder');
-    shaft.setAttribute('height', '1');
-    shaft.setAttribute('radius', '0.1');
-    shaft.setAttribute('color', 'red');
-    shaft.setAttribute('position', '0 0 -0.5');
-    
-    // Ponta (cone)
-    const tip = document.createElement('a-cone');
-    tip.setAttribute('height', '0.5');
-    tip.setAttribute('radius-bottom', '0.2');
-    tip.setAttribute('color', 'red');
-    tip.setAttribute('position', '0 0 0.5');
-    
-    // Adicionar componentes à seta
-    arrow.appendChild(shaft);
-    arrow.appendChild(tip);
-    
-    // Adicionar seta à câmera
-    camera.appendChild(arrow);
-    
-    debugLog('success', 'Seta guia criada');
-    
-    // Registrar componente de atualização
-    AFRAME.registerComponent('update-arrow', {
-        tick: function() {
-            if (typeof pois === 'undefined' || pois.length === 0) return;
-            if (userLocation.latitude === 0) return;
-            
-            const poi = pois[0];
-            const bearing = calculateBearing(
-                userLocation.latitude,
-                userLocation.longitude,
-                poi.latitude,
-                poi.longitude
-            );
-            
-            // Rotacionar seta
-            const arrowEntity = document.getElementById('arrow-guide');
-            if (arrowEntity) {
-                arrowEntity.setAttribute('rotation', `0 ${-bearing} 0`);
-                
-                // Calcular distância
-                const distance = calculateDistance(
-                    userLocation.latitude,
-                    userLocation.longitude,
-                    poi.latitude,
-                    poi.longitude
-                );
-                
-                // Mudar cor baseado na distância
-                const shaftEl = arrowEntity.querySelector('a-cylinder');
-                const tipEl = arrowEntity.querySelector('a-cone');
-                let color = 'red';
-                
-                if (distance < 0.1) { // Menos de 100m
-                    color = 'lime';
-                } else if (distance < 0.5) { // Menos de 500m
-                    color = 'yellow';
-                } else if (distance < 1) { // Menos de 1km
-                    color = 'orange';
-                } else {
-                    color = 'red';
-                }
-                
-                shaftEl.setAttribute('color', color);
-                tipEl.setAttribute('color', color);
-            }
+    // Aguardar scene carregar
+    setTimeout(function() {
+        const scene = document.querySelector('a-scene');
+        if (!scene) {
+            console.error('❌ a-scene não encontrada');
+            return;
         }
-    });
-    
-    // Adicionar componente ao documento (para tick executar)
-    document.body.setAttribute('update-arrow', '');
-}
+        console.log('✅ a-scene encontrada');
+        
+        const camera = document.querySelector('a-camera[gps-camera]');
+        if (!camera) {
+            console.error('❌ a-camera[gps-camera] não encontrada');
+            const anyCamera = document.querySelector('a-camera');
+            if (anyCamera) {
+                console.log('⚠️  Encontrada a-camera mas SEM gps-camera');
+                console.log('   Tentando adicionar seta mesmo assim...');
+            }
+            return;
+        }
+        console.log('✅ a-camera[gps-camera] encontrada');
+        
+        // Criar BOX de teste SIMPLES
+        console.log('✅ Criando BOX de teste...');
+        const testBox = document.createElement('a-box');
+        testBox.setAttribute('color', 'red');
+        testBox.setAttribute('position', '0 0 -2');
+        testBox.setAttribute('scale', '0.5 0.5 1');
+        testBox.id = 'test-arrow';
+        
+        // Adicionar à camera
+        camera.appendChild(testBox);
+        console.log('✅ BOX adicionado à camera');
+        console.log('   - ID: test-arrow');
+        console.log('   - Posição: 0 0 -2');
+        console.log('   - Cor: red');
+        console.log('   - Pai: a-camera[gps-camera]');
+        
+        // Verificar se foi adicionado
+        setTimeout(function() {
+            const added = document.getElementById('test-arrow');
+            if (added) {
+                console.log('✅ BOX está no DOM');
+                console.log('   Ele DEVE estar visível na câmera agora!');
+            } else {
+                console.error('❌ BOX não foi adicionado ao DOM');
+            }
+        }, 500);
+        
+    }, 2000); // Esperar 2 segundos para scene carregar
+});
 
-function calculateBearing(lat1, lon1, lat2, lon2) {
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const lat1Rad = lat1 * Math.PI / 180;
-    const lat2Rad = lat2 * Math.PI / 180;
-    
-    const y = Math.sin(dLon) * Math.cos(lat2Rad);
-    const x = Math.cos(lat1Rad) * Math.sin(lat2Rad) - 
-              Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(dLon);
-    
-    const bearing = Math.atan2(y, x) * 180 / Math.PI;
-    return (bearing + 360) % 360;
-}
-
-// ===== FIM ARROW GUIDE =====
+// ===== FIM ARROW TEST =====
