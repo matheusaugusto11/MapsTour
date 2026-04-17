@@ -484,35 +484,39 @@ function toggleScreens(screen) {
 // ===== POI MANAGEMENT - VERSÃO TESTE COM PRIMITIVAS SIMPLES =====
 
 function createPOIs() {
-    // Get the camera element
-    const camera = document.querySelector('a-camera');
-    if (!camera) {
-        console.error('Camera not found');
+    debugLog('info', 'Criando POIs...');
+    
+    const scene = document.querySelector('a-scene');
+    if (!scene) {
+        debugLog('error', 'a-scene não encontrada');
         return;
     }
 
-    // Define POI data
-    const pois = [
-        { id: 'poi1', color: 'blue', position: '0 0 -5' },
-        { id: 'poi2', color: 'green', position: '2 0 -5' },
-        { id: 'poi3', color: 'red', position: '-2 0 -5' }
-    ];
+    pois.forEach((poi, index) => {
+        try {
+            // Extrair dados do modelo
+            const primitive = poi.modelo.geometry.primitive;
+            const color = poi.modelo.material.color;
 
-    // Create each POI
-    pois.forEach(poi => {
-        const entity = document.createElement('a-entity');
-        entity.setAttribute('id', poi.id);
-        entity.setAttribute('geometry', 'primitive: box');
-        entity.setAttribute('material', `color: ${poi.color}`);
-        entity.setAttribute('position', poi.position);
-        entity.setAttribute('scale', '10 10 10');
-        
-        // Append as child of camera
-        camera.appendChild(entity);
-        
-        // Log creation
-        console.log(`Created POI: ${poi.id}, color: ${poi.color}, position: ${poi.position}`);
+            const gpsEntity = document.createElement('a-gps-entity-place');
+            entity.setAttribute('geometry', `primitive: ${primitive}`);
+            entity.setAttribute('material', `color: ${color}`);
+            entity.setAttribute('position', '0 0 -5');
+            entity.id = `poi-${index}`;
+
+            scene.appendChild(entity);
+
+            console.log(`✅ POI ${index} (${poi.name}) criado:`);
+            console.log(`   - Geometria: ${primitive}`);
+            console.log(`   - Cor: ${color}`);
+            console.log(`   - Posição: 0 0 -5`);
+        }
+        catch{
+            console.error(`❌ Erro ao criar POI ${index}:`, error);
+        }
     });
+
+    console.log(`✅ Todos os ${pois.length} POIs foram criados com sucesso!`);
 }
 
 // ===== FIM POI MANAGEMENT =====
