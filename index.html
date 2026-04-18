@@ -2,8 +2,8 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AR Navegação Guiada</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AR Navegação</title>
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
     <style>
@@ -13,27 +13,42 @@
             box-sizing: border-box;
         }
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
-            background-color: #000;
-            color: #fff;
-            height: 100vh;
-            overflow: hidden;
-        }
-
-        #ar-container {
-            position: relative;
+        html, body {
             width: 100%;
-            height: 100vh;
-            background-color: #000;
+            height: 100%;
+            overflow: hidden;
+            background: #000;
+            color: #fff;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
         }
 
+        #container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        /* MAP VIEW */
+        #map-view {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #map {
+            width: 100%;
+            flex: 1;
+            background: #1a1a1a;
+        }
+
+        /* AR VIEW */
         a-scene {
+            width: 100%;
+            height: 100%;
             position: absolute;
             top: 0;
             left: 0;
-            width: 100%;
-            height: 60%;
             display: none;
         }
 
@@ -41,84 +56,35 @@
             display: block;
         }
 
-        #status-panel {
-            position: fixed;
-            top: 20px;
-            left: 20px;
-            background: rgba(0, 0, 0, 0.9);
-            border: 2px solid #00E5FF;
-            border-radius: 8px;
-            padding: 12px 16px;
-            font-size: 14px;
-            z-index: 100;
-            font-family: 'Courier New', monospace;
-        }
-
-        .status-item {
-            display: flex;
-            align-items: center;
-            margin: 6px 0;
-        }
-
-        .status-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            margin-right: 8px;
-            background-color: #00FF00;
-        }
-
-        .status-dot.error {
-            background-color: #FF0000;
-        }
-
+        /* INSTRUCTION OVERLAY */
         #instruction {
             position: fixed;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            z-index: 50;
+            background: rgba(0, 20, 60, 0.95);
+            border: 2px solid #00E5FF;
+            border-radius: 12px;
+            padding: 20px 30px;
+            font-size: 18px;
+            font-weight: bold;
+            color: #fff;
             text-align: center;
+            z-index: 50;
             display: none;
+            max-width: 80vw;
+            text-shadow: 0 0 10px rgba(0, 229, 255, 0.5);
+            box-shadow: 0 0 20px rgba(0, 229, 255, 0.3);
         }
 
         #instruction.active {
             display: block;
         }
 
-        .instruction-text {
-            background: rgba(0, 20, 60, 0.95);
-            border: 2px solid #00E5FF;
-            border-radius: 12px;
-            padding: 20px 30px;
-            font-size: 20px;
-            font-weight: bold;
-            color: #fff;
-            text-shadow: 0 0 10px rgba(0, 229, 255, 0.5);
-            box-shadow: 0 0 20px rgba(0, 229, 255, 0.3);
-            max-width: 80vw;
-        }
-
-        #map-container {
-            position: fixed;
-            bottom: 0;
-            width: 100%;
-            height: 40%;
-            background: #111;
-            z-index: 10;
-            border-top: 2px solid #00E5FF;
-            overflow: hidden;
-        }
-
-        #map {
-            width: 100%;
-            height: 100%;
-            border: none;
-        }
-
+        /* CONTROLS */
         #controls {
             position: fixed;
-            bottom: 30px;
+            bottom: 20px;
             right: 20px;
             z-index: 100;
             display: flex;
@@ -133,10 +99,11 @@
             border: none;
             border-radius: 8px;
             cursor: pointer;
-            transition: all 0.3s ease;
             background: #00E5FF;
             color: #000;
             box-shadow: 0 0 15px rgba(0, 229, 255, 0.4);
+            transition: all 0.3s ease;
+            white-space: nowrap;
         }
 
         button:hover {
@@ -148,146 +115,187 @@
             transform: scale(0.98);
         }
 
+        button:disabled {
+            display: none;
+        }
+
+        /* RESPONSIVE */
         @media (max-width: 768px) {
-            #status-panel {
-                font-size: 12px;
-                padding: 10px 12px;
-                top: 10px;
-                left: 10px;
-            }
-
-            .instruction-text {
-                font-size: 18px;
-                padding: 16px 24px;
-            }
-
             #controls {
-                bottom: 20px;
-                right: 10px;
+                bottom: 15px;
+                right: 15px;
             }
 
             button {
                 padding: 10px 16px;
                 font-size: 14px;
             }
+
+            #instruction {
+                font-size: 16px;
+                padding: 16px 24px;
+                max-width: 90vw;
+            }
         }
 
-        /* AR Scene Styling */
-        a-scene {
-            background-color: #000;
+        @media (max-width: 480px) {
+            #controls {
+                bottom: 10px;
+                right: 10px;
+            }
+
+            button {
+                padding: 8px 12px;
+                font-size: 12px;
+            }
+
+            #instruction {
+                font-size: 14px;
+                padding: 12px 16px;
+                max-width: 95vw;
+            }
         }
     </style>
 </head>
 <body>
-    <div id="ar-container">
-        <!-- AR Scene -->
+    <div id="container">
+        <!-- MAP VIEW -->
+        <div id="map-view">
+            <div id="map"></div>
+        </div>
+
+        <!-- AR VIEW -->
         <a-scene id="ar-scene" embedded arjs="sourceType: webcam; debugUIEnabled: false;" vr-mode-ui="enabled: false;">
             <a-camera gps-camera rotation-reader></a-camera>
-
-            <!-- Seta Direcional (Cone + Cylinder) -->
-            <a-entity position="0 0 -3" id="arrow-guide">
-                <!-- Cone (Ponta da Seta) -->
+            
+            <!-- SETA DIRECIONAL -->
+            <a-entity position="0 0 -2" id="arrow-guide">
+                <!-- Cone (Ponta) -->
                 <a-cone 
-                    radius-bottom="0.4" 
+                    radius-bottom="0.3" 
                     radius-top="0" 
-                    height="0.8" 
-                    position="0 0.5 0" 
+                    height="0.6" 
+                    position="0 0.4 0" 
                     color="#00E5FF"
                     material="emissive: #00E5FF; emissiveIntensity: 0.8;">
                 </a-cone>
-
+                
                 <!-- Cylinder (Haste) -->
                 <a-cylinder 
-                    radius="0.15" 
-                    height="1.5" 
-                    position="0 -0.25 0" 
+                    radius="0.1" 
+                    height="1.2" 
+                    position="0 -0.2 0" 
                     color="#00E5FF"
                     material="emissive: #00E5FF; emissiveIntensity: 0.6;">
                 </a-cylinder>
-
-                <!-- Animação de rotação -->
-                <a-animation 
-                    attribute="rotation" 
-                    from="0 0 0" 
-                    to="0 360 0" 
-                    dur="4000" 
-                    repeat="indefinite">
-                </a-animation>
             </a-entity>
         </a-scene>
 
-        <!-- Status Panel -->
-        <div id="status-panel">
-            <div class="status-item">
-                <div class="status-dot"></div>
-                <span>📍 GPS: OK</span>
-            </div>
-            <div class="status-item">
-                <div class="status-dot"></div>
-                <span>🧭 Bussola: OK</span>
-            </div>
-        </div>
-
-        <!-- Instruction -->
+        <!-- INSTRUCTION OVERLAY -->
         <div id="instruction">
-            <div class="instruction-text">
-                ⬆️ Vire um pouco a direita
-            </div>
+            ⬆️ Vire um pouco a direita
         </div>
 
-        <!-- Map Container -->
-        <div id="map-container">
-            <iframe 
-                id="map" 
-                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3935.4453753449963!2d-37.07000032346808!3d-10.914534889024628!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x71e1587981151d5%3A0x4a501367f076adff!2sAracaju%2C%20SE!5e0!3m2!1spt-BR!2sbr!4v1713516000000" 
-                allowfullscreen="" 
-                loading="lazy" 
-                referrerpolicy="no-referrer-when-downgrade">
-            </iframe>
-        </div>
-
-        <!-- Controls -->
+        <!-- CONTROLS -->
         <div id="controls">
-            <button id="toggle-ar-btn">▶️ Iniciar AR</button>
-            <button id="toggle-instruction-btn">💬 Instrução</button>
+            <button id="start-ar-btn">▶️ Iniciar AR</button>
+            <button id="stop-ar-btn" disabled>⏹️ Parar AR</button>
         </div>
     </div>
 
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDummy"></script>
     <script>
+        const mapView = document.getElementById('map-view');
+        const mapDiv = document.getElementById('map');
         const arScene = document.getElementById('ar-scene');
-        const toggleARBtn = document.getElementById('toggle-ar-btn');
-        const instructionDiv = document.getElementById('instruction');
-        const toggleInstructionBtn = document.getElementById('toggle-instruction-btn');
-        
+        const instruction = document.getElementById('instruction');
+        const startBtn = document.getElementById('start-ar-btn');
+        const stopBtn = document.getElementById('stop-ar-btn');
+        const arrowGuide = document.getElementById('arrow-guide');
+
         let arActive = false;
-        let instructionActive = false;
+        let map = null;
 
-        // Toggle AR
-        toggleARBtn.addEventListener('click', () => {
-            arActive = !arActive;
+        // Inicializar mapa
+        function initMap() {
+            const defaultLocation = { lat: -10.9145, lng: -37.0708 }; // Aracaju Cathedral
             
-            if (arActive) {
-                arScene.classList.add('active');
-                toggleARBtn.textContent = '⏹️ Parar AR';
-                instructionDiv.classList.add('active');
-            } else {
-                arScene.classList.remove('active');
-                toggleARBtn.textContent = '▶️ Iniciar AR';
-                instructionDiv.classList.remove('active');
-            }
+            map = new google.maps.Map(mapDiv, {
+                zoom: 15,
+                center: defaultLocation,
+                disableDefaultUI: true,
+                zoomControl: true,
+                fullscreenControl: false
+            });
+
+            // Adicionar marcador
+            new google.maps.Marker({
+                position: defaultLocation,
+                map: map,
+                title: 'Destino'
+            });
+        }
+
+        // Iniciar AR
+        startBtn.addEventListener('click', () => {
+            console.log('🎯 Iniciando AR...');
+            arActive = true;
+            
+            mapView.style.display = 'none';
+            arScene.classList.add('active');
+            instruction.classList.add('active');
+            
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+
+            // Animar seta
+            animateArrow();
+
+            console.log('✅ AR iniciado');
         });
 
-        // Toggle Instruction
-        toggleInstructionBtn.addEventListener('click', () => {
-            if (arActive) {
-                instructionActive = !instructionActive;
-                instructionDiv.classList.toggle('active');
-            }
+        // Parar AR
+        stopBtn.addEventListener('click', () => {
+            console.log('🛑 Parando AR...');
+            arActive = false;
+            
+            arScene.classList.remove('active');
+            instruction.classList.remove('active');
+            mapView.style.display = 'flex';
+            
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+
+            console.log('✅ AR parado');
         });
 
-        // Log
-        console.log('✅ AR Navigation App Loaded');
-        console.log('🎯 Clique em "Iniciar AR" para começar');
+        // Animar seta
+        function animateArrow() {
+            let rotation = 0;
+            
+            const animate = () => {
+                if (arActive) {
+                    rotation += 2;
+                    if (rotation > 360) rotation = 0;
+                    
+                    arrowGuide.setAttribute('rotation', `0 ${rotation} 0`);
+                    requestAnimationFrame(animate);
+                }
+            };
+            
+            animate();
+        }
+
+        // Inicializar quando página carrega
+        window.addEventListener('load', () => {
+            console.log('✅ Página carregada');
+            try {
+                initMap();
+                console.log('✅ Mapa inicializado');
+            } catch (e) {
+                console.warn('⚠️ Mapa não disponível:', e);
+            }
+        });
     </script>
 </body>
 </html>
