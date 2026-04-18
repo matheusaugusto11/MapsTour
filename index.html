@@ -18,37 +18,45 @@
             height: 100%;
             overflow: hidden;
             background: #000;
-            color: #fff;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            font-family: Arial, sans-serif;
         }
 
-        #container {
-            width: 100%;
-            height: 100%;
-            position: relative;
-        }
-
-        /* MAP VIEW */
-        #map-view {
+        /* TELA INICIAL */
+        #initial-screen {
             width: 100%;
             height: 100%;
             display: flex;
-            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: #000;
         }
 
-        #map {
-            width: 100%;
-            flex: 1;
-            background: #1a1a1a;
+        #start-btn {
+            padding: 16px 32px;
+            font-size: 20px;
+            background: #00E5FF;
+            color: #000;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            box-shadow: 0 0 15px rgba(0, 229, 255, 0.4);
+            transition: all 0.3s ease;
         }
 
-        /* AR VIEW */
+        #start-btn:hover {
+            background: #00D4FF;
+            box-shadow: 0 0 25px rgba(0, 229, 255, 0.6);
+        }
+
+        #start-btn:active {
+            transform: scale(0.98);
+        }
+
+        /* AR SCENE */
         a-scene {
             width: 100%;
             height: 100%;
-            position: absolute;
-            top: 0;
-            left: 0;
             display: none;
         }
 
@@ -56,245 +64,176 @@
             display: block;
         }
 
-        /* INSTRUCTION OVERLAY */
+        /* INSTRUÇÃO */
         #instruction {
             position: fixed;
-            top: 50%;
+            top: 20px;
             left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(0, 20, 60, 0.95);
+            transform: translateX(-50%);
+            background: rgba(0, 20, 60, 0.85);
             border: 2px solid #00E5FF;
-            border-radius: 12px;
-            padding: 20px 30px;
-            font-size: 18px;
-            font-weight: bold;
+            border-radius: 8px;
+            padding: 10px 20px;
             color: #fff;
-            text-align: center;
+            font-size: 14px;
+            font-weight: bold;
             z-index: 50;
             display: none;
-            max-width: 80vw;
+            white-space: nowrap;
             text-shadow: 0 0 10px rgba(0, 229, 255, 0.5);
-            box-shadow: 0 0 20px rgba(0, 229, 255, 0.3);
         }
 
         #instruction.active {
             display: block;
         }
 
-        /* CONTROLS */
-        #controls {
+        /* BOTÃO PARAR */
+        #stop-btn {
             position: fixed;
             bottom: 20px;
             right: 20px;
-            z-index: 100;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        button {
-            padding: 12px 24px;
+            padding: 12px 20px;
             font-size: 16px;
-            font-weight: bold;
+            background: #FF3366;
+            color: #fff;
             border: none;
             border-radius: 8px;
             cursor: pointer;
-            background: #00E5FF;
-            color: #000;
-            box-shadow: 0 0 15px rgba(0, 229, 255, 0.4);
+            font-weight: bold;
+            z-index: 100;
+            display: none;
+            box-shadow: 0 0 15px rgba(255, 51, 102, 0.4);
             transition: all 0.3s ease;
-            white-space: nowrap;
         }
 
-        button:hover {
-            background: #00D4FF;
-            box-shadow: 0 0 25px rgba(0, 229, 255, 0.6);
+        #stop-btn:hover {
+            background: #FF1144;
+            box-shadow: 0 0 25px rgba(255, 51, 102, 0.6);
         }
 
-        button:active {
+        #stop-btn:active {
             transform: scale(0.98);
         }
 
-        button:disabled {
-            display: none;
+        #stop-btn.active {
+            display: block;
         }
 
-        /* RESPONSIVE */
+        /* RESPONSIVO */
         @media (max-width: 768px) {
-            #controls {
-                bottom: 15px;
-                right: 15px;
-            }
-
-            button {
-                padding: 10px 16px;
-                font-size: 14px;
+            #start-btn {
+                padding: 14px 28px;
+                font-size: 18px;
             }
 
             #instruction {
-                font-size: 16px;
-                padding: 16px 24px;
-                max-width: 90vw;
+                font-size: 13px;
+                top: 15px;
+                padding: 8px 16px;
+            }
+
+            #stop-btn {
+                padding: 10px 16px;
+                font-size: 14px;
+                bottom: 15px;
+                right: 15px;
             }
         }
 
         @media (max-width: 480px) {
-            #controls {
-                bottom: 10px;
-                right: 10px;
-            }
-
-            button {
-                padding: 8px 12px;
-                font-size: 12px;
+            #start-btn {
+                padding: 12px 24px;
+                font-size: 16px;
             }
 
             #instruction {
-                font-size: 14px;
-                padding: 12px 16px;
-                max-width: 95vw;
+                font-size: 12px;
+                top: 10px;
+                padding: 6px 12px;
+            }
+
+            #stop-btn {
+                padding: 8px 12px;
+                font-size: 12px;
+                bottom: 10px;
+                right: 10px;
             }
         }
     </style>
 </head>
 <body>
-    <div id="container">
-        <!-- MAP VIEW -->
-        <div id="map-view">
-            <div id="map"></div>
-        </div>
-
-        <!-- AR VIEW -->
-        <a-scene id="ar-scene" embedded arjs="sourceType: webcam; debugUIEnabled: false;" vr-mode-ui="enabled: false;">
-            <a-camera gps-camera rotation-reader></a-camera>
-            
-            <!-- SETA DIRECIONAL -->
-            <a-entity position="0 0 -2" id="arrow-guide">
-                <!-- Cone (Ponta) -->
-                <a-cone 
-                    radius-bottom="0.3" 
-                    radius-top="0" 
-                    height="0.6" 
-                    position="0 0.4 0" 
-                    color="#00E5FF"
-                    material="emissive: #00E5FF; emissiveIntensity: 0.8;">
-                </a-cone>
-                
-                <!-- Cylinder (Haste) -->
-                <a-cylinder 
-                    radius="0.1" 
-                    height="1.2" 
-                    position="0 -0.2 0" 
-                    color="#00E5FF"
-                    material="emissive: #00E5FF; emissiveIntensity: 0.6;">
-                </a-cylinder>
-            </a-entity>
-        </a-scene>
-
-        <!-- INSTRUCTION OVERLAY -->
-        <div id="instruction">
-            ⬆️ Vire um pouco a direita
-        </div>
-
-        <!-- CONTROLS -->
-        <div id="controls">
-            <button id="start-ar-btn">▶️ Iniciar AR</button>
-            <button id="stop-ar-btn" disabled>⏹️ Parar AR</button>
-        </div>
+    <!-- TELA INICIAL -->
+    <div id="initial-screen">
+        <button id="start-btn">▶️ Iniciar AR</button>
     </div>
 
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDummy"></script>
+    <!-- INSTRUÇÃO -->
+    <div id="instruction">
+        ⬆️ Vire um pouco a direita
+    </div>
+
+    <!-- BOTÃO PARAR -->
+    <button id="stop-btn">⏹️ Parar AR</button>
+
+    <!-- AR SCENE -->
+    <a-scene id="ar-scene" embedded arjs="sourceType: webcam; debugUIEnabled: false;" vr-mode-ui="enabled: false;">
+        <a-camera position="0 0 0"></a-camera>
+
+        <!-- SETA CYAN -->
+        <a-entity position="0 0 -2" id="arrow">
+            <!-- Cone (Ponta) -->
+            <a-cone 
+                radius-bottom="0.3" 
+                radius-top="0" 
+                height="0.6" 
+                position="0 0.4 0" 
+                color="#00E5FF"
+                material="emissive: #00E5FF; emissiveIntensity: 0.8;">
+            </a-cone>
+
+            <!-- Cylinder (Haste) -->
+            <a-cylinder 
+                radius="0.1" 
+                height="1.2" 
+                position="0 -0.2 0" 
+                color="#00E5FF"
+                material="emissive: #00E5FF; emissiveIntensity: 0.6;">
+            </a-cylinder>
+
+            <!-- Animação de rotação -->
+            <a-animation 
+                attribute="rotation" 
+                from="0 0 0" 
+                to="0 360 0" 
+                dur="3000" 
+                repeat="indefinite">
+            </a-animation>
+        </a-entity>
+    </a-scene>
+
     <script>
-        const mapView = document.getElementById('map-view');
-        const mapDiv = document.getElementById('map');
+        const initialScreen = document.getElementById('initial-screen');
         const arScene = document.getElementById('ar-scene');
+        const startBtn = document.getElementById('start-btn');
+        const stopBtn = document.getElementById('stop-btn');
         const instruction = document.getElementById('instruction');
-        const startBtn = document.getElementById('start-ar-btn');
-        const stopBtn = document.getElementById('stop-ar-btn');
-        const arrowGuide = document.getElementById('arrow-guide');
-
-        let arActive = false;
-        let map = null;
-
-        // Inicializar mapa
-        function initMap() {
-            const defaultLocation = { lat: -10.9145, lng: -37.0708 }; // Aracaju Cathedral
-            
-            map = new google.maps.Map(mapDiv, {
-                zoom: 15,
-                center: defaultLocation,
-                disableDefaultUI: true,
-                zoomControl: true,
-                fullscreenControl: false
-            });
-
-            // Adicionar marcador
-            new google.maps.Marker({
-                position: defaultLocation,
-                map: map,
-                title: 'Destino'
-            });
-        }
 
         // Iniciar AR
         startBtn.addEventListener('click', () => {
-            console.log('🎯 Iniciando AR...');
-            arActive = true;
-            
-            mapView.style.display = 'none';
+            console.log('▶️ AR iniciado');
+            initialScreen.style.display = 'none';
             arScene.classList.add('active');
             instruction.classList.add('active');
-            
-            startBtn.disabled = true;
-            stopBtn.disabled = false;
-
-            // Animar seta
-            animateArrow();
-
-            console.log('✅ AR iniciado');
+            stopBtn.classList.add('active');
         });
 
         // Parar AR
         stopBtn.addEventListener('click', () => {
-            console.log('🛑 Parando AR...');
-            arActive = false;
-            
+            console.log('⏹️ AR parado');
             arScene.classList.remove('active');
             instruction.classList.remove('active');
-            mapView.style.display = 'flex';
-            
-            startBtn.disabled = false;
-            stopBtn.disabled = true;
-
-            console.log('✅ AR parado');
-        });
-
-        // Animar seta
-        function animateArrow() {
-            let rotation = 0;
-            
-            const animate = () => {
-                if (arActive) {
-                    rotation += 2;
-                    if (rotation > 360) rotation = 0;
-                    
-                    arrowGuide.setAttribute('rotation', `0 ${rotation} 0`);
-                    requestAnimationFrame(animate);
-                }
-            };
-            
-            animate();
-        }
-
-        // Inicializar quando página carrega
-        window.addEventListener('load', () => {
-            console.log('✅ Página carregada');
-            try {
-                initMap();
-                console.log('✅ Mapa inicializado');
-            } catch (e) {
-                console.warn('⚠️ Mapa não disponível:', e);
-            }
+            stopBtn.classList.remove('active');
+            initialScreen.style.display = 'flex';
         });
     </script>
 </body>
