@@ -26,7 +26,6 @@
             width: 100%;
             height: 100vh;
             background-color: #00000000;
-            display: flex;
         }
 
         a-scene {
@@ -73,31 +72,79 @@
             background-color: #FF0000;
         }
 
-        #instruction {
+        /* ===== SETA INTERFACE (FIXA NA TELA) ===== */
+        
+        #arrow-interface {
             position: fixed;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
             z-index: 50;
-            text-align: center;
             display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
         }
 
-        #instruction.active {
-            display: block;
+        #arrow-interface.active {
+            display: flex;
+        }
+
+        .arrow-circle {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(0, 229, 255, 0.3) 0%, rgba(0, 100, 150, 0.2) 100%);
+            border: 3px solid #00E5FF;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 30px rgba(0, 229, 255, 0.6), inset 0 0 20px rgba(0, 229, 255, 0.3);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .arrow-icon {
+            font-size: 50px;
+            color: #00E5FF;
+            text-shadow: 0 0 10px rgba(0, 229, 255, 0.8);
+            animation: bounce 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                box-shadow: 0 0 30px rgba(0, 229, 255, 0.6), inset 0 0 20px rgba(0, 229, 255, 0.3);
+            }
+            50% {
+                box-shadow: 0 0 50px rgba(0, 229, 255, 0.8), inset 0 0 30px rgba(0, 229, 255, 0.5);
+            }
+        }
+
+        @keyframes bounce {
+            0%, 100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-10px);
+            }
         }
 
         .instruction-text {
             background: rgba(0, 20, 60, 0.95);
             border: 2px solid #00E5FF;
             border-radius: 12px;
-            padding: 20px 30px;
-            font-size: 20px;
+            padding: 12px 20px;
+            font-size: 16px;
             font-weight: bold;
             color: #fff;
             text-shadow: 0 0 10px rgba(0, 229, 255, 0.5);
             box-shadow: 0 0 20px rgba(0, 229, 255, 0.3);
-            max-width: 80vw;
+            white-space: nowrap;
+        }
+
+        /* ===== INSTRUCTION LEGACY (REMOVIDO) ===== */
+        
+        #instruction {
+            display: none;
         }
 
         #map-container {
@@ -107,7 +154,7 @@
             right: 0;
             width: 100%;
             height: 40%;
-            background: #11111100;
+            background: #111;
             z-index: 10;
             border-top: 2px solid #00E5FF;
             overflow: hidden;
@@ -175,9 +222,19 @@
                 margin-right: 6px;
             }
 
+            .arrow-circle {
+                width: 80px;
+                height: 80px;
+                border: 2px solid #00E5FF;
+            }
+
+            .arrow-icon {
+                font-size: 40px;
+            }
+
             .instruction-text {
-                font-size: 16px;
-                padding: 14px 20px;
+                font-size: 14px;
+                padding: 10px 16px;
                 border-radius: 10px;
                 max-width: 85vw;
             }
@@ -218,9 +275,19 @@
                 margin-right: 5px;
             }
 
+            .arrow-circle {
+                width: 70px;
+                height: 70px;
+                border: 2px solid #00E5FF;
+            }
+
+            .arrow-icon {
+                font-size: 35px;
+            }
+
             .instruction-text {
-                font-size: 14px;
-                padding: 12px 16px;
+                font-size: 12px;
+                padding: 8px 12px;
                 max-width: 90vw;
             }
 
@@ -235,23 +302,6 @@
                 font-size: 12px;
             }
         }
-
-        @media (max-width: 360px) {
-            #status-panel {
-                font-size: 10px;
-                padding: 6px 8px;
-            }
-
-            .instruction-text {
-                font-size: 12px;
-                padding: 10px 14px;
-            }
-
-            button {
-                padding: 6px 10px;
-                font-size: 11px;
-            }
-        }
     </style>
 </head>
 <body>
@@ -259,27 +309,46 @@
         <!-- AR Scene -->
         <a-scene id="ar-scene" embedded arjs="sourceType: webcam; debugUIEnabled: false;" vr-mode-ui="enabled: false;">
             <a-camera id="camera" gps-camera rotation-reader></a-camera>
-            <!-- SETA REMOVIDA - SERÁ CRIADA VIA JAVASCRIPT -->
+            
+            <!-- DESTINO - Objeto 3D no ponto de destino -->
+            <a-entity id="destination-marker" gps-entity-place="latitude: 0; longitude: 0;">
+                <a-box color="red" scale="0.5 0.5 0.5"></a-box>
+            </a-entity>
+
+            <!-- LINHA CONECTANDO CÂMERA AO DESTINO -->
+            <a-entity id="route-line" line="start: 0 0 0; end: 0 0 0; color: yellow;"></a-entity>
         </a-scene>
 
         <!-- Status Panel -->
         <div id="status-panel">
             <div class="status-item">
-                <div class="status-dot"></div>
-                <span>📍 GPS: OK</span>
+                <div class="status-dot" id="gps-dot"></div>
+                <span>📍 GPS: <span id="gps-status">Buscando...</span></span>
             </div>
             <div class="status-item">
                 <div class="status-dot"></div>
                 <span>🧭 Bussola: OK</span>
             </div>
+            <div class="status-item" id="coords-item" style="font-size: 11px; margin-top: 8px;">
+                <span id="coords-text">Lat: --, Lon: --</span>
+            </div>
+            <div class="status-item" id="distance-item" style="font-size: 11px;">
+                <span id="distance-text">Distância: -- m</span>
+            </div>
         </div>
 
-        <!-- Instruction -->
-        <div id="instruction">
+        <!-- Arrow Interface (NOVA - Fixa na tela) -->
+        <div id="arrow-interface">
+            <div class="arrow-circle">
+                <div class="arrow-icon">➜</div>
+            </div>
             <div class="instruction-text">
                 ⬆️ Vire um pouco a direita
             </div>
         </div>
+
+        <!-- Instruction (LEGADO - não usado mais) -->
+        <div id="instruction"></div>
 
         <!-- Map Container -->
         <div id="map-container">
@@ -303,65 +372,94 @@
         const arScene = document.getElementById('ar-scene');
         const camera = document.getElementById('camera');
         const toggleARBtn = document.getElementById('toggle-ar-btn');
-        const instructionDiv = document.getElementById('instruction');
+        const arrowInterface = document.getElementById('arrow-interface');
         const toggleInstructionBtn = document.getElementById('toggle-instruction-btn');
+        const destinationMarker = document.getElementById('destination-marker');
+        const routeLine = document.getElementById('route-line');
         
         let arActive = false;
         let instructionActive = false;
-        let arrow = null;
+        let currentLat = 0;
+        let currentLon = 0;
+        let destLat = 0;
+        let destLon = 0;
 
-        // Criar seta como filha da câmera
-        function createArrow() {
-            console.log('🎯 Criando seta como filha da câmera...');
+        // ===== GPS TRACKING =====
+        function initGPS() {
+            console.log('📍 Iniciando GPS...');
             
-            // Container da seta
-            arrow = document.createElement('a-entity');
-            arrow.setAttribute('position', '0 0 -3');
-            arrow.setAttribute('id', 'arrow-guide');
-
-            // Cone (Ponta da Seta)
-            const cone = document.createElement('a-cone');
-            cone.setAttribute('radius-bottom', '0.4');
-            cone.setAttribute('radius-top', '0');
-            cone.setAttribute('height', '0.8');
-            cone.setAttribute('position', '0 0.5 0');
-            cone.setAttribute('color', '#00E5FF');
-            cone.setAttribute('material', 'emissive: #00E5FF; emissiveIntensity: 0.8;');
-
-            // Cylinder (Haste)
-            const cylinder = document.createElement('a-cylinder');
-            cylinder.setAttribute('radius', '0.15');
-            cylinder.setAttribute('height', '1.5');
-            cylinder.setAttribute('position', '0 -0.25 0');
-            cylinder.setAttribute('color', '#00E5FF');
-            cylinder.setAttribute('material', 'emissive: #00E5FF; emissiveIntensity: 0.6;');
-
-            // Animação de rotação
-            const animation = document.createElement('a-animation');
-            animation.setAttribute('attribute', 'rotation');
-            animation.setAttribute('from', '0 0 0');
-            animation.setAttribute('to', '0 360 0');
-            animation.setAttribute('dur', '4000');
-            animation.setAttribute('repeat', 'indefinite');
-
-            // Adicionar ao container
-            arrow.appendChild(cone);
-            arrow.appendChild(cylinder);
-            arrow.appendChild(animation);
-
-            // Adicionar como FILHA da câmera (NÃO da scene)
-            camera.appendChild(arrow);
-            
-            console.log('✅ Seta adicionada à câmera');
+            if (navigator.geolocation) {
+                navigator.geolocation.watchPosition(
+                    (position) => {
+                        currentLat = position.coords.latitude;
+                        currentLon = position.coords.longitude;
+                        
+                        console.log(`✅ GPS OK: ${currentLat}, ${currentLon}`);
+                        document.getElementById('gps-dot').classList.remove('error');
+                        document.getElementById('gps-status').textContent = 'OK';
+                        document.getElementById('coords-text').textContent = `Lat: ${currentLat.toFixed(6)}, Lon: ${currentLon.toFixed(6)}`;
+                        
+                        // Definir destino (5 metros ao norte)
+                        if (destLat === 0) {
+                            destLat = currentLat + 0.000045; // ~5 metros
+                            destLon = currentLon;
+                            updateDestination();
+                        }
+                        
+                        // Atualizar distância e linha
+                        if (arActive) {
+                            updateDistance();
+                            updateRouteLine();
+                        }
+                    },
+                    (error) => {
+                        console.error('❌ Erro GPS:', error);
+                        document.getElementById('gps-dot').classList.add('error');
+                        document.getElementById('gps-status').textContent = 'Erro';
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 5000,
+                        maximumAge: 0
+                    }
+                );
+            } else {
+                console.error('❌ Geolocalização não suportada');
+            }
         }
 
-        // Remover seta
-        function removeArrow() {
-            if (arrow && arrow.parentNode) {
-                camera.removeChild(arrow);
-                arrow = null;
-                console.log('🗑️ Seta removida');
-            }
+        // Atualizar posição do marcador de destino
+        function updateDestination() {
+            console.log(`🎯 Destino definido: ${destLat}, ${destLon}`);
+            destinationMarker.setAttribute('gps-entity-place', `latitude: ${destLat}; longitude: ${destLon};`);
+        }
+
+        // Calcular distância entre dois pontos (Haversine)
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371; // Raio da Terra em km
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c * 1000; // Retorna em metros
+        }
+
+        // Atualizar distância no painel
+        function updateDistance() {
+            const distance = calculateDistance(currentLat, currentLon, destLat, destLon);
+            document.getElementById('distance-text').textContent = `Distância: ${distance.toFixed(1)} m`;
+        }
+
+        // Atualizar linha de rota
+        function updateRouteLine() {
+            const distance = calculateDistance(currentLat, currentLon, destLat, destLon);
+            const latDiff = destLat - currentLat;
+            const lonDiff = destLon - currentLon;
+            
+            // Estimativa de posição em 3D (Z = distância em metros / 100)
+            routeLine.setAttribute('line', `start: 0 0 0; end: ${latDiff * 111000} 0 ${lonDiff * 111000}; color: yellow;`);
         }
 
         // Toggle AR
@@ -372,14 +470,13 @@
                 console.log('▶️ AR Iniciado');
                 arScene.classList.add('active');
                 toggleARBtn.textContent = '⏹️ Parar AR';
-                instructionDiv.classList.add('active');
-                createArrow(); // Criar seta quando AR é iniciado
+                arrowInterface.classList.add('active');
+                initGPS();
             } else {
                 console.log('⏹️ AR Parado');
                 arScene.classList.remove('active');
                 toggleARBtn.textContent = '▶️ Iniciar AR';
-                instructionDiv.classList.remove('active');
-                removeArrow(); // Remover seta quando AR é parado
+                arrowInterface.classList.remove('active');
             }
         });
 
@@ -387,7 +484,7 @@
         toggleInstructionBtn.addEventListener('click', () => {
             if (arActive) {
                 instructionActive = !instructionActive;
-                instructionDiv.classList.toggle('active');
+                arrowInterface.classList.toggle('active');
             }
         });
 
