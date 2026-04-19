@@ -1,489 +1,226 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AR Navegação Guiada com Detecção de Mão</title>
-    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
-    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
-    
-    <!-- MediaPipe Hands -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
-    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AR Hand Detection App</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: sans-serif; background: #000; color: #fff; height: 100vh; overflow: hidden; }
-        
-        #ar-container { position: relative; width: 100%; height: 100vh; }
-        a-scene { position: absolute; top: 0; left: 0; width: 100%; height: 60%; display: none; }
-        a-scene.active { display: block; }
-        
-        #hand-detection-canvas {
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background-color: #000;
+            color: #00E5FF;
+            overflow: hidden;
+        }
+        #status-panel {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 10px;
+            z-index: 1000;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .dot {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            transition: background-color 0.3s;
+        }
+        .dot.gray { background-color: gray; }
+        .dot.red { background-color: red; }
+        .dot.green { background-color: green; animation: pulse 1s infinite; }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        #video {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
-            height: 60%;
-            display: none;
+            height: 100%;
+            object-fit: cover;
             z-index: 1;
         }
-        
-        #hand-detection-canvas.active {
-            display: block;
+        #map {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            width: 300px;
+            height: 200px;
+            z-index: 1000;
         }
-        
-        #status-panel {
-            position: fixed;
-            top: 20px;
-            left: 20px;
-            background: rgba(0, 0, 0, 0.9);
-            border: 2px solid #00E5FF;
-            border-radius: 8px;
-            padding: 12px 16px;
-            font-size: 14px;
-            z-index: 100;
-            font-family: 'Courier New', monospace;
-        }
-        
-        .status-item {
-            display: flex;
-            align-items: center;
-            margin: 6px 0;
-        }
-        
-        .status-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            margin-right: 8px;
-            background-color: #00FF00;
-        }
-        
-        .status-dot.error {
-            background-color: #FF0000;
-        }
-        
-        #arrow-interface {
-            position: fixed;
+        #arrow {
+            position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            z-index: 50;
-            display: none;
-            flex-direction: column;
-            align-items: center;
-            gap: 15px;
-        }
-        
-        #arrow-interface.active {
-            display: flex;
-        }
-        
-        .arrow-circle {
-            width: 100px;
-            height: 100px;
-            border-radius: 50%;
-            background: radial-gradient(circle, rgba(0, 229, 255, 0.3) 0%, rgba(0, 100, 150, 0.2) 100%);
-            border: 3px solid #00E5FF;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 0 30px rgba(0, 229, 255, 0.6), inset 0 0 20px rgba(0, 229, 255, 0.3);
-            animation: pulse 2s ease-in-out infinite;
-        }
-        
-        .arrow-icon {
             font-size: 50px;
             color: #00E5FF;
-            text-shadow: 0 0 10px rgba(0, 229, 255, 0.8);
-            animation: bounce 1.5s ease-in-out infinite;
+            z-index: 500;
         }
-        
-        @keyframes pulse {
-            0%, 100% { box-shadow: 0 0 30px rgba(0, 229, 255, 0.6), inset 0 0 20px rgba(0, 229, 255, 0.3); }
-            50% { box-shadow: 0 0 50px rgba(0, 229, 255, 0.8), inset 0 0 30px rgba(0, 229, 255, 0.5); }
-        }
-        
-        @keyframes bounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
-        }
-        
-        .instruction-text {
-            background: rgba(0, 20, 60, 0.95);
-            border: 2px solid #00E5FF;
-            border-radius: 12px;
-            padding: 12px 20px;
-            font-size: 16px;
-            font-weight: bold;
-            color: #fff;
-            text-shadow: 0 0 10px rgba(0, 229, 255, 0.5);
-            box-shadow: 0 0 20px rgba(0, 229, 255, 0.3);
-            white-space: nowrap;
-        }
-        
-        #map-container {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            width: 100%;
-            height: 40%;
-            background: #111;
-            z-index: 10;
-            border-top: 2px solid #00E5FF;
-            overflow: hidden;
-        }
-        
-        #map { width: 100%; height: 100%; border: none; }
-        
-        #controls {
-            position: fixed;
-            bottom: 30px;
-            right: 20px;
-            z-index: 100;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-        
         button {
-            padding: 12px 24px;
-            font-size: 16px;
-            font-weight: bold;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            background: #00E5FF;
+            background-color: #00E5FF;
             color: #000;
-            box-shadow: 0 0 15px rgba(0, 229, 255, 0.4);
-        }
-        
-        button:hover { background: #00D4FF; box-shadow: 0 0 25px rgba(0, 229, 255, 0.6); }
-        button:active { transform: scale(0.98); }
-        
-        #hand-info {
-            position: fixed;
-            top: 100px;
-            left: 20px;
-            background: rgba(0, 200, 100, 0.9);
-            border: 2px solid #00FF00;
-            border-radius: 8px;
-            padding: 10px 16px;
-            font-size: 13px;
-            z-index: 100;
-            display: none;
-        }
-        
-        #hand-info.active {
-            display: block;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            z-index: 1000;
         }
     </style>
 </head>
 <body>
-    <div id="ar-container">
-        <!-- Canvas para desenho de mãos -->
-        <canvas id="hand-detection-canvas"></canvas>
-        
-        <!-- AR Scene -->
-        <a-scene id="ar-scene" embedded arjs="sourceType: webcam; debugUIEnabled: false;" vr-mode-ui="enabled: false;">
-            <a-camera id="camera" gps-camera rotation-reader></a-camera>
-            <a-entity id="destination-marker" gps-entity-place="latitude: 0; longitude: 0;">
-                <a-box color="red" scale="0.5 0.5 0.5"></a-box>
-            </a-entity>
-        </a-scene>
-        
-        <!-- Status Panel -->
-        <div id="status-panel">
-            <div class="status-item">
-                <div class="status-dot" id="gps-dot"></div>
-                <span>📍 GPS: <span id="gps-status">Buscando...</span></span>
-            </div>
-            <div class="status-item">
-                <div class="status-dot"></div>
-                <span>🧭 Bussola: OK</span>
-            </div>
-            <div class="status-item" id="coords-item" style="font-size: 11px; margin-top: 8px;">
-                <span id="coords-text">Lat: --, Lon: --</span>
-            </div>
-            <div class="status-item" id="distance-item" style="font-size: 11px;">
-                <span id="distance-text">Distância: -- m</span>
-            </div>
+    <div id="status-panel">
+        <div class="status-item">
+            <div class="dot" id="gps-dot"></div>
+            <span>GPS</span>
         </div>
-        
-        <!-- Info de Mão Detectada -->
-        <div id="hand-info">
-            <div style="font-weight: bold; color: #fff;">✋ Mão Detectada!</div>
-            <div id="hand-details" style="margin-top: 4px;"></div>
+        <div class="status-item">
+            <div class="dot" id="compass-dot"></div>
+            <span>Compass</span>
         </div>
-        
-        <!-- Arrow Interface -->
-        <div id="arrow-interface">
-            <div class="arrow-circle">
-                <div class="arrow-icon">➜</div>
-            </div>
-            <div class="instruction-text">
-                ⬆️ Vire um pouco a direita
-            </div>
-        </div>
-        
-        <!-- Map Container -->
-        <div id="map-container">
-            <iframe 
-                id="map" 
-                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3935.4453753449963!2d-37.07000032346808!3d-10.914534889024628!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x71e1587981151d5%3A0x4a501367f076adff!2sAracaju%2C%20SE!5e0!3m2!1spt-BR!2sbr!4v1713516000000" 
-                allowfullscreen="" 
-                loading="lazy" 
-                referrerpolicy="no-referrer-when-downgrade">
-            </iframe>
-        </div>
-        
-        <!-- Controls -->
-        <div id="controls">
-            <button id="toggle-ar-btn">▶️ Iniciar AR</button>
-            <button id="toggle-hand-btn">✋ Ativar Detecção de Mão</button>
-            <button id="toggle-instruction-btn">💬 Instrução</button>
+        <div class="status-item">
+            <div class="dot" id="hand-dot"></div>
+            <span>Hand Detection</span>
         </div>
     </div>
+    <video id="video" autoplay muted></video>
+    <div id="map"></div>
+    <div id="arrow">↑</div>
+    <button id="detect-btn">Start Hand Detection</button>
 
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/hands.js"></script>
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <script>
-        const arScene = document.getElementById('ar-scene');
-        const camera = document.getElementById('camera');
-        const toggleARBtn = document.getElementById('toggle-ar-btn');
-        const toggleHandBtn = document.getElementById('toggle-hand-btn');
-        const arrowInterface = document.getElementById('arrow-interface');
-        const toggleInstructionBtn = document.getElementById('toggle-instruction-btn');
-        const handDetectionCanvas = document.getElementById('hand-detection-canvas');
-        const handInfo = document.getElementById('hand-info');
-        const destinationMarker = document.getElementById('destination-marker');
-        
-        let arActive = false;
+        const video = document.getElementById('video');
+        const detectBtn = document.getElementById('detect-btn');
+        const gpsDot = document.getElementById('gps-dot');
+        const compassDot = document.getElementById('compass-dot');
+        const handDot = document.getElementById('hand-dot');
+        const arrow = document.getElementById('arrow');
+
         let handDetectionActive = false;
-        let currentLat = 0;
-        let currentLon = 0;
-        let destLat = 0;
-        let destLon = 0;
-        let hands = new Hands({
-            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
-        });
-        
-        let videoElement = null;
-        let canvasCtx = null;
-        let spawnedModels = [];
+        let hands;
+        let map;
+        let marker;
 
-        // ===== CONFIGURAÇÃO MEDIAPIPE HANDS =====
-        hands.setOptions({
-            maxNumHands: 2,
-            modelComplexity: 1,
-            minDetectionConfidence: 0.5,
-            minTrackingConfidence: 0.5
-        });
-
-        hands.onResults(onHandsResults);
-
-        function initHandDetection() {
-            console.log('✋ Inicializando detecção de mão...');
-            
-            const video = document.querySelector('video');
-            if (!video) {
-                console.error('❌ Vídeo da câmera não encontrado');
-                return;
-            }
-            
-            videoElement = video;
-            canvasCtx = handDetectionCanvas.getContext('2d');
-            
-            handDetectionCanvas.width = handDetectionCanvas.offsetWidth;
-            handDetectionCanvas.height = handDetectionCanvas.offsetHeight;
-            
-            const camera = new Camera(video, {
-                onFrame: async () => {
-                    await hands.send({ image: video });
-                },
-                width: handDetectionCanvas.width,
-                height: handDetectionCanvas.height
+        // Initialize MediaPipe Hands
+        function initHands() {
+            hands = new Hands({
+                locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/${file}`
             });
-            
-            camera.start();
-            console.log('✅ Detecção de mão iniciada');
+            hands.setOptions({
+                maxNumHands: 1,
+                modelComplexity: 1,
+                minDetectionConfidence: 0.5,
+                minTrackingConfidence: 0.5
+            });
+            hands.onResults(onResults);
         }
 
-        function onHandsResults(results) {
-            canvasCtx.clearRect(0, 0, handDetectionCanvas.width, handDetectionCanvas.height);
-            
-            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-                handInfo.classList.add('active');
-                
-                results.multiHandLandmarks.forEach((landmarks, index) => {
-                    const handedness = results.multiHandedness[index].label;
-                    const confidence = (results.multiHandedness[index].score * 100).toFixed(1);
-                    
-                    // Desenhar pontos da mão
-                    landmarks.forEach((landmark, i) => {
-                        const x = landmark.x * handDetectionCanvas.width;
-                        const y = landmark.y * handDetectionCanvas.height;
-                        
-                        canvasCtx.fillStyle = '#00E5FF';
-                        canvasCtx.beginPath();
-                        canvasCtx.arc(x, y, 4, 0, 2 * Math.PI);
-                        canvasCtx.fill();
-                    });
-                    
-                    // Info da mão
-                    const detailsDiv = document.getElementById('hand-details');
-                    detailsDiv.innerHTML = `${handedness} Hand - ${confidence}% confiança`;
-                    
-                    // Detectar gesto (por exemplo, polegar para cima)
-                    const thumbTip = landmarks[4];
-                    const indexTip = landmarks[8];
-                    
-                    if (thumbTip.y < indexTip.y) {
-                        console.log('👍 Polegar para cima detectado!');
-                        spawnModelAtHandPosition(thumbTip, handedness);
-                    }
-                });
-            } else {
-                handInfo.classList.remove('active');
-                // Limpar modelos spawnados se nenhuma mão for detectada
-                if (spawnedModels.length > 0) {
-                    spawnedModels.forEach(model => model.remove());
-                    spawnedModels = [];
+        // Handle hand detection results
+        function onResults(results) {
+            if (handDetectionActive) {
+                if (results.multiHandLandmarks.length > 0) {
+                    handDot.className = 'dot green';
+                } else {
+                    handDot.className = 'dot red';
                 }
             }
         }
 
-        function spawnModelAtHandPosition(handLandmark, handedness) {
-            console.log(`🎯 Spawnando modelo na posição da ${handedness} Hand`);
-            
-            // Converter posição da mão para coordenadas 3D
-            const x = (handLandmark.x - 0.5) * 2; // -1 a 1
-            const y = -(handLandmark.y - 0.5) * 2; // -1 a 1 (invertido)
-            const z = -1; // À frente da câmera
-            
-            // Criar esfera (pode ser substituída por modelo 3D real)
-            const model = document.createElement('a-entity');
-            model.setAttribute('geometry', 'primitive: sphere; radius: 0.2;');
-            model.setAttribute('material', 'color: #FF6B35; emissive: #FF6B35; emissiveIntensity: 0.5;');
-            model.setAttribute('position', `${x} ${y} ${z}`);
-            
-            // Adicionar ao ar-scene
-            arScene.appendChild(model);
-            spawnedModels.push(model);
-            
-            // Remover após 2 segundos
-            setTimeout(() => {
-                model.remove();
-                spawnedModels = spawnedModels.filter(m => m !== model);
-            }, 2000);
-        }
-
-        // Toggle Hand Detection
-        toggleHandBtn.addEventListener('click', () => {
-            handDetectionActive = !handDetectionActive;
-            
-            if (handDetectionActive && arActive) {
-                console.log('✅ Detecção de mão ativada');
-                handDetectionCanvas.classList.add('active');
-                initHandDetection();
-                toggleHandBtn.textContent = '✋ Desativar Detecção';
+        // Start/stop hand detection
+        detectBtn.addEventListener('click', () => {
+            if (!handDetectionActive) {
+                handDetectionActive = true;
+                handDot.className = 'dot red';
+                detectBtn.textContent = 'Stop Hand Detection';
+                navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
+                    video.srcObject = stream;
+                    video.play();
+                    const camera = new Camera(video, {
+                        onFrame: async () => {
+                            if (handDetectionActive) {
+                                await hands.send({ image: video });
+                            }
+                        },
+                        width: 640,
+                        height: 480
+                    });
+                    camera.start();
+                });
             } else {
-                console.log('❌ Detecção de mão desativada');
-                handDetectionCanvas.classList.remove('active');
-                toggleHandBtn.textContent = '✋ Ativar Detecção de Mão';
-            }
-        });
-
-        // Toggle AR
-        toggleARBtn.addEventListener('click', () => {
-            arActive = !arActive;
-            
-            if (arActive) {
-                console.log('▶️ AR Iniciado');
-                arScene.classList.add('active');
-                toggleARBtn.textContent = '⏹️ Parar AR';
-                arrowInterface.classList.add('active');
-                initGPS();
-            } else {
-                console.log('⏹️ AR Parado');
-                arScene.classList.remove('active');
-                toggleARBtn.textContent = '▶️ Iniciar AR';
-                arrowInterface.classList.remove('active');
                 handDetectionActive = false;
-                handDetectionCanvas.classList.remove('active');
+                handDot.className = 'dot gray';
+                detectBtn.textContent = 'Start Hand Detection';
+                if (video.srcObject) {
+                    video.srcObject.getTracks().forEach(track => track.stop());
+                }
             }
         });
 
-        // Toggle Instruction
-        toggleInstructionBtn.addEventListener('click', () => {
-            if (arActive) {
-                arrowInterface.classList.toggle('active');
-            }
-        });
-
-        // ===== GPS TRACKING =====
+        // GPS functionality
         function initGPS() {
-            console.log('📍 Iniciando GPS...');
-            
             if (navigator.geolocation) {
-                navigator.geolocation.watchPosition(
-                    (position) => {
-                        currentLat = position.coords.latitude;
-                        currentLon = position.coords.longitude;
-                        
-                        console.log(`✅ GPS OK: ${currentLat}, ${currentLon}`);
-                        document.getElementById('gps-dot').classList.remove('error');
-                        document.getElementById('gps-status').textContent = 'OK';
-                        document.getElementById('coords-text').textContent = `Lat: ${currentLat.toFixed(6)}, Lon: ${currentLon.toFixed(6)}`;
-                        
-                        if (destLat === 0) {
-                            destLat = currentLat + 0.000045;
-                            destLon = currentLon;
-                            updateDestination();
-                        }
-                        
-                        if (arActive) {
-                            updateDistance();
-                        }
-                    },
-                    (error) => {
-                        console.error('❌ Erro GPS:', error);
-                        document.getElementById('gps-dot').classList.add('error');
-                        document.getElementById('gps-status').textContent = 'Erro';
-                    },
-                    {
-                        enableHighAccuracy: true,
-                        timeout: 5000,
-                        maximumAge: 0
+                navigator.geolocation.watchPosition(position => {
+                    gpsDot.className = 'dot green';
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    if (map && marker) {
+                        marker.setLatLng([lat, lng]);
+                        map.setView([lat, lng], 15);
                     }
-                );
+                }, () => {
+                    gpsDot.className = 'dot red';
+                });
+            } else {
+                gpsDot.className = 'dot gray';
             }
         }
 
-        function updateDestination() {
-            console.log(`🎯 Destino: ${destLat}, ${destLon}`);
-            destinationMarker.setAttribute('gps-entity-place', `latitude: ${destLat}; longitude: ${destLon};`);
+        // Compass functionality
+        function initCompass() {
+            if (window.DeviceOrientationEvent) {
+                window.addEventListener('deviceorientation', event => {
+                    compassDot.className = 'dot green';
+                    const heading = event.alpha;
+                    arrow.style.transform = `translate(-50%, -50%) rotate(${heading}deg)`;
+                });
+            } else {
+                compassDot.className = 'dot gray';
+            }
         }
 
-        function calculateDistance(lat1, lon1, lat2, lon2) {
-            const R = 6371;
-            const dLat = (lat2 - lat1) * Math.PI / 180;
-            const dLon = (lon2 - lon1) * Math.PI / 180;
-            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-                      Math.sin(dLon / 2) * Math.sin(dLon / 2);
-            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-            return R * c * 1000;
+        // Initialize map
+        function initMap() {
+            map = L.map('map').setView([0, 0], 2);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+            marker = L.marker([0, 0]).addTo(map);
         }
 
-        function updateDistance() {
-            const distance = calculateDistance(currentLat, currentLon, destLat, destLon);
-            document.getElementById('distance-text').textContent = `Distância: ${distance.toFixed(1)} m`;
-        }
-
-        console.log('✅ AR Navigation with Hand Detection Loaded');
+        // Initialize everything
+        initHands();
+        initGPS();
+        initCompass();
+        initMap();
     </script>
 </body>
 </html>
