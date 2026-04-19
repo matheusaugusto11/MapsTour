@@ -350,7 +350,6 @@
         <!-- Controls -->
         <div id="controls">
             <button id="toggle-ar-btn">▶️ Iniciar AR</button>
-            <button id="toggle-hand-btn">✋ Ativar Detecção</button>
             <button id="toggle-instruction-btn">💬 Instrução</button>
         </div>
     </div>
@@ -359,14 +358,13 @@
         const arScene = document.getElementById('ar-scene');
         const camera = document.getElementById('camera');
         const toggleARBtn = document.getElementById('toggle-ar-btn');
-        const toggleHandBtn = document.getElementById('toggle-hand-btn');
         const arrowInterface = document.getElementById('arrow-interface');
         const toggleInstructionBtn = document.getElementById('toggle-instruction-btn');
         const handDetectionCanvas = document.getElementById('hand-detection-canvas');
         const destinationMarker = document.getElementById('destination-marker');
         
         let arActive = false;
-        let handDetectionActive = false;
+        let handDetectionActive = true; // MUDADO: Começa ativado por padrão
         let currentLat = 0;
         let currentLon = 0;
         let destLat = 0;
@@ -460,24 +458,6 @@
             }
         }
 
-        // ===== TOGGLE HAND DETECTION =====
-        toggleHandBtn.addEventListener('click', () => {
-            handDetectionActive = !handDetectionActive;
-            
-            if (handDetectionActive && arActive) {
-                console.log('✅ Detecção de mão ativada');
-                handDetectionCanvas.classList.add('active');
-                initHandDetection();
-                toggleHandBtn.textContent = '✋ Desativar Detecção';
-                updateHandDetectionStatus('active-no-hand');
-            } else {
-                console.log('❌ Detecção de mão desativada');
-                handDetectionCanvas.classList.remove('active');
-                toggleHandBtn.textContent = '✋ Ativar Detecção';
-                updateHandDetectionStatus('inactive');
-            }
-        });
-
         // ===== TOGGLE AR =====
         toggleARBtn.addEventListener('click', () => {
             arActive = !arActive;
@@ -488,14 +468,15 @@
                 toggleARBtn.textContent = '⏹️ Parar AR';
                 arrowInterface.classList.add('active');
                 initGPS();
+                // Iniciar detecção de mão quando AR é ativado
+                handDetectionCanvas.classList.add('active');
+                initHandDetection();
             } else {
                 console.log('⏹️ AR Parado');
                 arScene.classList.remove('active');
                 toggleARBtn.textContent = '▶️ Iniciar AR';
                 arrowInterface.classList.remove('active');
-                handDetectionActive = false;
                 handDetectionCanvas.classList.remove('active');
-                updateHandDetectionStatus('inactive');
             }
         });
 
@@ -566,8 +547,8 @@
             document.getElementById('distance-text').textContent = `Distância: ${distance.toFixed(1)} m`;
         }
 
-        // Inicializar status de mão como inativa
-        updateHandDetectionStatus('inactive');
+        // Inicializar status de mão como ativa/nenhuma (já que começa ligado)
+        updateHandDetectionStatus('active-no-hand');
 
         console.log('✅ AR Navigation with Hand Detection Loaded');
     </script>
