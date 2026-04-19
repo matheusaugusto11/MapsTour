@@ -3,24 +3,51 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AR Navegação Guiada com Detecção de Mão</title>
+    <title>AR Navegação Guiada</title>
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
     
-    <!-- MediaPipe Hands -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    <!-- TensorFlow + COCO-SSD para detecção de objetos -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
     
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: sans-serif; background: #000; color: #fff; height: 100vh; overflow: hidden; }
-        
-        #ar-container { position: relative; width: 100%; height: 100vh; }
-        a-scene { position: absolute; top: 0; left: 0; width: 100%; height: 60%; display: none; }
-        a-scene.active { display: block; }
-        
-        #hand-detection-canvas {
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            background-color: #000;
+            color: #fff;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #ar-container {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            background-color: #00000000;
+        }
+
+        a-scene {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 60%;
+            display: none;
+        }
+
+        a-scene.active {
+            display: block;
+        }
+
+        /* Canvas invisível para detecção */
+        #detection-canvas {
             position: absolute;
             top: 0;
             left: 0;
@@ -29,11 +56,11 @@
             display: none;
             z-index: 1;
         }
-        
-        #hand-detection-canvas.active {
+
+        #detection-canvas.active {
             display: block;
         }
-        
+
         #status-panel {
             position: fixed;
             top: 20px;
@@ -46,48 +73,26 @@
             z-index: 100;
             font-family: 'Courier New', monospace;
         }
-        
+
         .status-item {
             display: flex;
             align-items: center;
             margin: 6px 0;
         }
-        
+
         .status-dot {
             width: 10px;
             height: 10px;
             border-radius: 50%;
             margin-right: 8px;
             background-color: #00FF00;
-            transition: background-color 0.3s ease;
         }
-        
+
         .status-dot.error {
             background-color: #FF0000;
         }
 
-        /* Estados de Detecção de Mão */
-        .status-dot.inactive {
-            background-color: #666; /* Cinza */
-        }
-
-        .status-dot.active-no-hand {
-            background-color: #FF0000; /* Vermelho */
-        }
-
-        .status-dot.detected {
-            background-color: #00FF00; /* Verde */
-            animation: handPulse 1.5s ease-in-out infinite;
-        }
-
-        @keyframes handPulse {
-            0%, 100% {
-                box-shadow: 0 0 5px rgba(0, 255, 0, 0.5);
-            }
-            50% {
-                box-shadow: 0 0 15px rgba(0, 255, 0, 0.8);
-            }
-        }
+        /* ===== SETA INTERFACE (FIXA NA TELA) ===== */
         
         #arrow-interface {
             position: fixed;
@@ -100,11 +105,11 @@
             align-items: center;
             gap: 15px;
         }
-        
+
         #arrow-interface.active {
             display: flex;
         }
-        
+
         .arrow-circle {
             width: 100px;
             height: 100px;
@@ -117,24 +122,32 @@
             box-shadow: 0 0 30px rgba(0, 229, 255, 0.6), inset 0 0 20px rgba(0, 229, 255, 0.3);
             animation: pulse 2s ease-in-out infinite;
         }
-        
+
         .arrow-icon {
             font-size: 50px;
             color: #00E5FF;
             text-shadow: 0 0 10px rgba(0, 229, 255, 0.8);
             animation: bounce 1.5s ease-in-out infinite;
         }
-        
+
         @keyframes pulse {
-            0%, 100% { box-shadow: 0 0 30px rgba(0, 229, 255, 0.6), inset 0 0 20px rgba(0, 229, 255, 0.3); }
-            50% { box-shadow: 0 0 50px rgba(0, 229, 255, 0.8), inset 0 0 30px rgba(0, 229, 255, 0.5); }
+            0%, 100% {
+                box-shadow: 0 0 30px rgba(0, 229, 255, 0.6), inset 0 0 20px rgba(0, 229, 255, 0.3);
+            }
+            50% {
+                box-shadow: 0 0 50px rgba(0, 229, 255, 0.8), inset 0 0 30px rgba(0, 229, 255, 0.5);
+            }
         }
-        
+
         @keyframes bounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
+            0%, 100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-10px);
+            }
         }
-        
+
         .instruction-text {
             background: rgba(0, 20, 60, 0.95);
             border: 2px solid #00E5FF;
@@ -147,7 +160,13 @@
             box-shadow: 0 0 20px rgba(0, 229, 255, 0.3);
             white-space: nowrap;
         }
+
+        /* ===== INSTRUCTION LEGACY (REMOVIDO) ===== */
         
+        #instruction {
+            display: none;
+        }
+
         #map-container {
             position: fixed;
             bottom: 0;
@@ -159,10 +178,17 @@
             z-index: 10;
             border-top: 2px solid #00E5FF;
             overflow: hidden;
+            display: flex;
         }
-        
-        #map { width: 100%; height: 100%; border: none; }
-        
+
+        #map {
+            width: 100%;
+            height: 100%;
+            border: none;
+            flex: 1;
+            min-width: 100%;
+        }
+
         #controls {
             position: fixed;
             bottom: 30px;
@@ -172,7 +198,7 @@
             flex-direction: column;
             gap: 10px;
         }
-        
+
         button {
             padding: 12px 24px;
             font-size: 16px;
@@ -185,10 +211,18 @@
             color: #000;
             box-shadow: 0 0 15px rgba(0, 229, 255, 0.4);
         }
-        
-        button:hover { background: #00D4FF; box-shadow: 0 0 25px rgba(0, 229, 255, 0.6); }
-        button:active { transform: scale(0.98); }
 
+        button:hover {
+            background: #00D4FF;
+            box-shadow: 0 0 25px rgba(0, 229, 255, 0.6);
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        /* ===== RESPONSIVIDADE MOBILE ===== */
+        
         @media (max-width: 768px) {
             #status-panel {
                 font-size: 12px;
@@ -292,17 +326,22 @@
 </head>
 <body>
     <div id="ar-container">
-        <!-- Canvas para desenho de mãos -->
-        <canvas id="hand-detection-canvas"></canvas>
-        
         <!-- AR Scene -->
         <a-scene id="ar-scene" embedded arjs="sourceType: webcam; debugUIEnabled: false;" vr-mode-ui="enabled: false;">
             <a-camera id="camera" gps-camera rotation-reader></a-camera>
+            
+            <!-- DESTINO - Objeto 3D no ponto de destino -->
             <a-entity id="destination-marker" gps-entity-place="latitude: 0; longitude: 0;">
                 <a-box color="red" scale="0.5 0.5 0.5"></a-box>
             </a-entity>
+
+            <!-- LINHA CONECTANDO CÂMERA AO DESTINO -->
+            <a-entity id="route-line" line="start: 0 0 0; end: 0 0 0; color: yellow;"></a-entity>
         </a-scene>
-        
+
+        <!-- Canvas para detecção de objetos -->
+        <canvas id="detection-canvas"></canvas>
+
         <!-- Status Panel -->
         <div id="status-panel">
             <div class="status-item">
@@ -319,14 +358,13 @@
             <div class="status-item" id="distance-item" style="font-size: 11px;">
                 <span id="distance-text">Distância: -- m</span>
             </div>
-            <!-- NOVO: Status de Detecção de Mão -->
-            <div class="status-item" id="hand-detection-status" style="margin-top: 8px; border-top: 1px solid #00E5FF; padding-top: 8px;">
-                <div class="status-dot" id="hand-detection-dot" class="inactive"></div>
-                <span>✋ Mão: <span id="hand-detection-text">Inativa</span></span>
+            <!-- NOVO: Objetos detectados -->
+            <div class="status-item" id="objects-item" style="font-size: 11px; margin-top: 8px; border-top: 1px solid #00E5FF; padding-top: 8px;">
+                <span>🎯 Detectados: <span id="detected-objects">--</span></span>
             </div>
         </div>
-        
-        <!-- Arrow Interface -->
+
+        <!-- Arrow Interface (NOVA - Fixa na tela) -->
         <div id="arrow-interface">
             <div class="arrow-circle">
                 <div class="arrow-icon">➜</div>
@@ -335,7 +373,10 @@
                 ⬆️ Vire um pouco a direita
             </div>
         </div>
-        
+
+        <!-- Instruction (LEGADO - não usado mais) -->
+        <div id="instruction"></div>
+
         <!-- Map Container -->
         <div id="map-container">
             <iframe 
@@ -346,7 +387,7 @@
                 referrerpolicy="no-referrer-when-downgrade">
             </iframe>
         </div>
-        
+
         <!-- Controls -->
         <div id="controls">
             <button id="toggle-ar-btn">▶️ Iniciar AR</button>
@@ -360,132 +401,17 @@
         const toggleARBtn = document.getElementById('toggle-ar-btn');
         const arrowInterface = document.getElementById('arrow-interface');
         const toggleInstructionBtn = document.getElementById('toggle-instruction-btn');
-        const handDetectionCanvas = document.getElementById('hand-detection-canvas');
         const destinationMarker = document.getElementById('destination-marker');
+        const routeLine = document.getElementById('route-line');
+        const detectionCanvas = document.getElementById('detection-canvas');
         
         let arActive = false;
-        let handDetectionActive = true; // MUDADO: Começa ativado por padrão
+        let instructionActive = false;
         let currentLat = 0;
         let currentLon = 0;
         let destLat = 0;
         let destLon = 0;
-        let hands = new Hands({
-            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
-        });
-        
-        let canvasCtx = null;
-        let spawnedModels = [];
-
-        // ===== CONFIGURAÇÃO MEDIAPIPE HANDS =====
-        hands.setOptions({
-            maxNumHands: 2,
-            modelComplexity: 1,
-            minDetectionConfidence: 0.5,
-            minTrackingConfidence: 0.5
-        });
-
-        hands.onResults(onHandsResults);
-
-        function initHandDetection() {
-            console.log('✋ Inicializando detecção de mão...');
-            
-            const video = document.querySelector('video');
-            if (!video) {
-                console.error('❌ Vídeo da câmera não encontrado');
-                return;
-            }
-            
-            canvasCtx = handDetectionCanvas.getContext('2d');
-            
-            handDetectionCanvas.width = handDetectionCanvas.offsetWidth;
-            handDetectionCanvas.height = handDetectionCanvas.offsetHeight;
-            
-            const camera = new Camera(video, {
-                onFrame: async () => {
-                    await hands.send({ image: video });
-                },
-                width: handDetectionCanvas.width,
-                height: handDetectionCanvas.height
-            });
-            
-            camera.start();
-            console.log('✅ Detecção de mão iniciada');
-        }
-
-        // ===== ATUALIZAR STATUS DE DETECÇÃO =====
-        function updateHandDetectionStatus(status) {
-            const dot = document.getElementById('hand-detection-dot');
-            const text = document.getElementById('hand-detection-text');
-            
-            dot.className = 'status-dot ' + status;
-            
-            if (status === 'inactive') {
-                text.textContent = 'Inativa';
-            } else if (status === 'active-no-hand') {
-                text.textContent = 'Nenhuma';
-            } else if (status === 'detected') {
-                text.textContent = 'Detectada';
-            }
-        }
-
-        function onHandsResults(results) {
-            if (!canvasCtx) return;
-            
-            canvasCtx.clearRect(0, 0, handDetectionCanvas.width, handDetectionCanvas.height);
-            
-            if (handDetectionActive) {
-                if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-                    updateHandDetectionStatus('detected');
-                    
-                    results.multiHandLandmarks.forEach((landmarks, index) => {
-                        landmarks.forEach((landmark) => {
-                            const x = landmark.x * handDetectionCanvas.width;
-                            const y = landmark.y * handDetectionCanvas.height;
-                            
-                            canvasCtx.fillStyle = '#00E5FF';
-                            canvasCtx.beginPath();
-                            canvasCtx.arc(x, y, 4, 0, 2 * Math.PI);
-                            canvasCtx.fill();
-                        });
-                    });
-                } else {
-                    updateHandDetectionStatus('active-no-hand');
-                    if (spawnedModels.length > 0) {
-                        spawnedModels.forEach(model => model.remove());
-                        spawnedModels = [];
-                    }
-                }
-            }
-        }
-
-        // ===== TOGGLE AR =====
-        toggleARBtn.addEventListener('click', () => {
-            arActive = !arActive;
-            
-            if (arActive) {
-                console.log('▶️ AR Iniciado');
-                arScene.classList.add('active');
-                toggleARBtn.textContent = '⏹️ Parar AR';
-                arrowInterface.classList.add('active');
-                initGPS();
-                // Iniciar detecção de mão quando AR é ativado
-                handDetectionCanvas.classList.add('active');
-                initHandDetection();
-            } else {
-                console.log('⏹️ AR Parado');
-                arScene.classList.remove('active');
-                toggleARBtn.textContent = '▶️ Iniciar AR';
-                arrowInterface.classList.remove('active');
-                handDetectionCanvas.classList.remove('active');
-            }
-        });
-
-        // ===== TOGGLE INSTRUCTION =====
-        toggleInstructionBtn.addEventListener('click', () => {
-            if (arActive) {
-                arrowInterface.classList.toggle('active');
-            }
-        });
+        let cocoModel = null;
 
         // ===== GPS TRACKING =====
         function initGPS() {
@@ -502,14 +428,17 @@
                         document.getElementById('gps-status').textContent = 'OK';
                         document.getElementById('coords-text').textContent = `Lat: ${currentLat.toFixed(6)}, Lon: ${currentLon.toFixed(6)}`;
                         
+                        // Definir destino (5 metros ao norte)
                         if (destLat === 0) {
-                            destLat = currentLat + 0.000045;
+                            destLat = currentLat + 0.000045; // ~5 metros
                             destLon = currentLon;
                             updateDestination();
                         }
                         
+                        // Atualizar distância e linha
                         if (arActive) {
                             updateDistance();
+                            updateRouteLine();
                         }
                     },
                     (error) => {
@@ -523,34 +452,125 @@
                         maximumAge: 0
                     }
                 );
+            } else {
+                console.error('❌ Geolocalização não suportada');
             }
         }
 
+        // Atualizar posição do marcador de destino
         function updateDestination() {
-            console.log(`🎯 Destino: ${destLat}, ${destLon}`);
+            console.log(`🎯 Destino definido: ${destLat}, ${destLon}`);
             destinationMarker.setAttribute('gps-entity-place', `latitude: ${destLat}; longitude: ${destLon};`);
         }
 
+        // Calcular distância entre dois pontos (Haversine)
         function calculateDistance(lat1, lon1, lat2, lon2) {
-            const R = 6371;
+            const R = 6371; // Raio da Terra em km
             const dLat = (lat2 - lat1) * Math.PI / 180;
             const dLon = (lon2 - lon1) * Math.PI / 180;
             const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
                       Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
                       Math.sin(dLon / 2) * Math.sin(dLon / 2);
             const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-            return R * c * 1000;
+            return R * c * 1000; // Retorna em metros
         }
 
+        // Atualizar distância no painel
         function updateDistance() {
             const distance = calculateDistance(currentLat, currentLon, destLat, destLon);
             document.getElementById('distance-text').textContent = `Distância: ${distance.toFixed(1)} m`;
         }
 
-        // Inicializar status de mão como ativa/nenhuma (já que começa ligado)
-        updateHandDetectionStatus('active-no-hand');
+        // Atualizar linha de rota
+        function updateRouteLine() {
+            const distance = calculateDistance(currentLat, currentLon, destLat, destLon);
+            const latDiff = destLat - currentLat;
+            const lonDiff = destLon - currentLon;
+            
+            // Estimativa de posição em 3D (Z = distância em metros / 100)
+            routeLine.setAttribute('line', `start: 0 0 0; end: ${latDiff * 111000} 0 ${lonDiff * 111000}; color: yellow;`);
+        }
 
-        console.log('✅ AR Navigation with Hand Detection Loaded');
+        // ===== DETECÇÃO DE OBJETOS =====
+        async function initObjectDetection() {
+            console.log('🎯 Carregando modelo COCO-SSD...');
+            try {
+                cocoModel = await cocoSsd.load();
+                console.log('✅ Modelo COCO-SSD carregado');
+                detectObjects();
+            } catch (error) {
+                console.error('❌ Erro ao carregar modelo:', error);
+            }
+        }
+
+        async function detectObjects() {
+            if (!arActive || !cocoModel) return;
+            
+            const video = document.querySelector('video');
+            if (video && video.readyState === 4) {
+                detectionCanvas.width = video.videoWidth || 640;
+                detectionCanvas.height = video.videoHeight || 480;
+                
+                const ctx = detectionCanvas.getContext('2d');
+                ctx.drawImage(video, 0, 0, detectionCanvas.width, detectionCanvas.height);
+                
+                const predictions = await cocoModel.detect(detectionCanvas);
+                onObjectsDetected(predictions);
+                
+                // Desenhar bounding boxes
+                ctx.strokeStyle = '#00E5FF';
+                ctx.lineWidth = 2;
+                predictions.forEach(pred => {
+                    const [x, y, w, h] = pred.bbox;
+                    ctx.strokeRect(x, y, w, h);
+                    ctx.fillStyle = '#00E5FF';
+                    ctx.font = '14px Arial';
+                    ctx.fillText(`${pred.class} (${(pred.score * 100).toFixed(1)}%)`, x, y - 5);
+                });
+            }
+            
+            requestAnimationFrame(detectObjects);
+        }
+
+        function onObjectsDetected(predictions) {
+            const objectsText = predictions
+                .map(p => `${p.class} (${(p.score * 100).toFixed(0)}%)`)
+                .join(', ');
+            document.getElementById('detected-objects').textContent = objectsText || '--';
+        }
+
+        // Toggle AR
+        toggleARBtn.addEventListener('click', () => {
+            arActive = !arActive;
+            
+            if (arActive) {
+                console.log('▶️ AR Iniciado');
+                arScene.classList.add('active');
+                detectionCanvas.classList.add('active');
+                toggleARBtn.textContent = '⏹️ Parar AR';
+                arrowInterface.classList.add('active');
+                initGPS();
+                initObjectDetection();
+            } else {
+                console.log('⏹️ AR Parado');
+                arScene.classList.remove('active');
+                detectionCanvas.classList.remove('active');
+                toggleARBtn.textContent = '▶️ Iniciar AR';
+                arrowInterface.classList.remove('active');
+            }
+        });
+
+        // Toggle Instruction
+        toggleInstructionBtn.addEventListener('click', () => {
+            if (arActive) {
+                instructionActive = !instructionActive;
+                arrowInterface.classList.toggle('active');
+            }
+        });
+
+        // Log
+        console.log('✅ AR Navigation App Loaded');
+        console.log('🎯 Clique em "Iniciar AR" para começar');
     </script>
 </body>
 </html>
