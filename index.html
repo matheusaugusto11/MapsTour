@@ -1,576 +1,223 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AR Navegação Guiada</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AR GPS Navigation</title>
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
-    
-    <!-- TensorFlow + COCO-SSD para detecção de objetos -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
-    
+    <script src="https://unpkg.com/aframe-gps-camera@0.1.0/dist/aframe-gps-camera.min.js"></script>
     <style>
-        * {
+        body {
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
-            background-color: #000;
-            color: #fff;
-            height: 100vh;
+            font-family: Arial, sans-serif;
             overflow: hidden;
         }
-
-        #ar-container {
-            position: relative;
-            width: 100%;
-            height: 100vh;
-            background-color: #00000000;
-        }
-
-        a-scene {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 60%;
-            display: none;
-        }
-
-        a-scene.active {
-            display: block;
-        }
-
-        /* Canvas invisível para detecção */
-        #detection-canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 60%;
-            display: none;
-            z-index: 1;
-        }
-
-        #detection-canvas.active {
-            display: block;
-        }
-
         #status-panel {
-            position: fixed;
-            top: 20px;
-            left: 20px;
-            background: rgba(0, 0, 0, 0.9);
-            border: 2px solid #00E5FF;
-            border-radius: 8px;
-            padding: 12px 16px;
-            font-size: 14px;
-            z-index: 100;
-            font-family: 'Courier New', monospace;
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 10;
         }
-
-        .status-item {
-            display: flex;
-            align-items: center;
-            margin: 6px 0;
-        }
-
-        .status-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            margin-right: 8px;
-            background-color: #00FF00;
-        }
-
-        .status-dot.error {
-            background-color: #FF0000;
-        }
-
-        /* ===== SETA INTERFACE (FIXA NA TELA) ===== */
-        
         #arrow-interface {
-            position: fixed;
+            position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            z-index: 50;
-            display: none;
-            flex-direction: column;
-            align-items: center;
-            gap: 15px;
+            z-index: 10;
         }
-
-        #arrow-interface.active {
-            display: flex;
-        }
-
-        .arrow-circle {
-            width: 100px;
-            height: 100px;
-            border-radius: 50%;
-            background: radial-gradient(circle, rgba(0, 229, 255, 0.3) 0%, rgba(0, 100, 150, 0.2) 100%);
-            border: 3px solid #00E5FF;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 0 30px rgba(0, 229, 255, 0.6), inset 0 0 20px rgba(0, 229, 255, 0.3);
-            animation: pulse 2s ease-in-out infinite;
-        }
-
-        .arrow-icon {
-            font-size: 50px;
-            color: #00E5FF;
-            text-shadow: 0 0 10px rgba(0, 229, 255, 0.8);
-            animation: bounce 1.5s ease-in-out infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% {
-                box-shadow: 0 0 30px rgba(0, 229, 255, 0.6), inset 0 0 20px rgba(0, 229, 255, 0.3);
-            }
-            50% {
-                box-shadow: 0 0 50px rgba(0, 229, 255, 0.8), inset 0 0 30px rgba(0, 229, 255, 0.5);
-            }
-        }
-
-        @keyframes bounce {
-            0%, 100% {
-                transform: translateY(0);
-            }
-            50% {
-                transform: translateY(-10px);
-            }
-        }
-
-        .instruction-text {
-            background: rgba(0, 20, 60, 0.95);
-            border: 2px solid #00E5FF;
-            border-radius: 12px;
-            padding: 12px 20px;
-            font-size: 16px;
-            font-weight: bold;
-            color: #fff;
-            text-shadow: 0 0 10px rgba(0, 229, 255, 0.5);
-            box-shadow: 0 0 20px rgba(0, 229, 255, 0.3);
-            white-space: nowrap;
-        }
-
-        /* ===== INSTRUCTION LEGACY (REMOVIDO) ===== */
-        
-        #instruction {
-            display: none;
-        }
-
-        #map-container {
-            position: fixed;
+        #map {
+            position: absolute;
             bottom: 0;
             left: 0;
-            right: 0;
             width: 100%;
             height: 40%;
-            background: #111;
-            z-index: 10;
-            border-top: 2px solid #00E5FF;
-            overflow: hidden;
-            display: flex;
+            z-index: 5;
         }
-
-        #map {
+        #controls {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            z-index: 10;
+        }
+        #camera-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
             width: 100%;
             height: 100%;
-            border: none;
-            flex: 1;
-            min-width: 100%;
+            z-index: 15;
+            pointer-events: none;
         }
-
-        #controls {
-            position: fixed;
-            bottom: 30px;
-            right: 20px;
-            z-index: 100;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
         button {
-            padding: 12px 24px;
-            font-size: 16px;
-            font-weight: bold;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.3s ease;
+            padding: 10px 20px;
+            margin: 5px;
             background: #00E5FF;
-            color: #000;
-            box-shadow: 0 0 15px rgba(0, 229, 255, 0.4);
+            color: black;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
         }
-
-        button:hover {
-            background: #00D4FF;
-            box-shadow: 0 0 25px rgba(0, 229, 255, 0.6);
-        }
-
-        button:active {
-            transform: scale(0.98);
-        }
-
-        /* ===== RESPONSIVIDADE MOBILE ===== */
-        
         @media (max-width: 768px) {
             #status-panel {
                 font-size: 12px;
-                padding: 10px 12px;
-                top: 10px;
-                left: 10px;
-                border-radius: 6px;
+                padding: 5px;
             }
-
-            .status-item {
-                margin: 4px 0;
-            }
-
-            .status-dot {
-                width: 8px;
-                height: 8px;
-                margin-right: 6px;
-            }
-
-            .arrow-circle {
-                width: 80px;
-                height: 80px;
-                border: 2px solid #00E5FF;
-            }
-
-            .arrow-icon {
-                font-size: 40px;
-            }
-
-            .instruction-text {
-                font-size: 14px;
-                padding: 10px 16px;
-                border-radius: 10px;
-                max-width: 85vw;
-            }
-
-            #map-container {
-                height: 35%;
-            }
-
-            a-scene {
-                height: 65%;
-            }
-
             #controls {
-                bottom: 15px;
-                right: 10px;
-                gap: 8px;
-            }
-
-            button {
-                padding: 10px 18px;
-                font-size: 14px;
-                border-radius: 6px;
-                min-height: 44px;
+                bottom: 5px;
+                right: 5px;
             }
         }
-
         @media (max-width: 480px) {
-            #status-panel {
-                font-size: 11px;
-                padding: 8px 10px;
-                top: 8px;
-                left: 8px;
-            }
-
-            .status-dot {
-                width: 7px;
-                height: 7px;
-                margin-right: 5px;
-            }
-
-            .arrow-circle {
-                width: 70px;
-                height: 70px;
-                border: 2px solid #00E5FF;
-            }
-
-            .arrow-icon {
-                font-size: 35px;
-            }
-
-            .instruction-text {
-                font-size: 12px;
-                padding: 8px 12px;
-                max-width: 90vw;
-            }
-
-            #controls {
-                bottom: 10px;
-                right: 8px;
-                gap: 6px;
-            }
-
-            button {
-                padding: 8px 14px;
-                font-size: 12px;
+            #map {
+                height: 50%;
             }
         }
     </style>
 </head>
 <body>
-    <div id="ar-container">
-        <!-- AR Scene -->
-        <a-scene id="ar-scene" embedded arjs="sourceType: webcam; debugUIEnabled: false;" vr-mode-ui="enabled: false;">
-            <a-camera id="camera" gps-camera rotation-reader></a-camera>
-            
-            <!-- DESTINO - Objeto 3D no ponto de destino -->
-            <a-entity id="destination-marker" gps-entity-place="latitude: 0; longitude: 0;">
-                <a-box color="red" scale="0.5 0.5 0.5"></a-box>
-            </a-entity>
-
-            <!-- LINHA CONECTANDO CÂMERA AO DESTINO -->
-            <a-entity id="route-line" line="start: 0 0 0; end: 0 0 0; color: yellow;"></a-entity>
-        </a-scene>
-
-        <!-- Canvas para detecção de objetos -->
-        <canvas id="detection-canvas"></canvas>
-
-        <!-- Status Panel -->
-        <div id="status-panel">
-            <div class="status-item">
-                <div class="status-dot" id="gps-dot"></div>
-                <span>📍 GPS: <span id="gps-status">Buscando...</span></span>
-            </div>
-            <div class="status-item">
-                <div class="status-dot"></div>
-                <span>🧭 Bussola: OK</span>
-            </div>
-            <div class="status-item" id="coords-item" style="font-size: 11px; margin-top: 8px;">
-                <span id="coords-text">Lat: --, Lon: --</span>
-            </div>
-            <div class="status-item" id="distance-item" style="font-size: 11px;">
-                <span id="distance-text">Distância: -- m</span>
-            </div>
-            <!-- NOVO: Objetos detectados -->
-            <div class="status-item" id="objects-item" style="font-size: 11px; margin-top: 8px; border-top: 1px solid #00E5FF; padding-top: 8px;">
-                <span>🎯 Detectados: <span id="detected-objects">--</span></span>
-            </div>
-        </div>
-
-        <!-- Arrow Interface (NOVA - Fixa na tela) -->
-        <div id="arrow-interface">
-            <div class="arrow-circle">
-                <div class="arrow-icon">➜</div>
-            </div>
-            <div class="instruction-text">
-                ⬆️ Vire um pouco a direita
-            </div>
-        </div>
-
-        <!-- Instruction (LEGADO - não usado mais) -->
-        <div id="instruction"></div>
-
-        <!-- Map Container -->
-        <div id="map-container">
-            <iframe 
-                id="map" 
-                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3935.4453753449963!2d-37.07000032346808!3d-10.914534889024628!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x71e1587981151d5%3A0x4a501367f076adff!2sAracaju%2C%20SE!5e0!3m2!1spt-BR!2sbr!4v1713516000000" 
-                allowfullscreen="" 
-                loading="lazy" 
-                referrerpolicy="no-referrer-when-downgrade">
-            </iframe>
-        </div>
-
-        <!-- Controls -->
-        <div id="controls">
-            <button id="toggle-ar-btn">▶️ Iniciar AR</button>
-            <button id="toggle-instruction-btn">💬 Instrução</button>
-        </div>
+    <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;" vr-mode-ui="enabled: false">
+        <a-camera gps-camera="simulateLatitude: 0; simulateLongitude: 0;" rotation-reader></a-camera>
+        <a-entity gps-entity-place="latitude: 0.000045; longitude: 0;" look-at="[gps-camera]">
+            <a-box color="red" scale="1 1 1"></a-box>
+        </a-entity>
+        <a-entity line="start: 0 0 0; end: 0 0 -5; color: yellow;"></a-entity>
+        <a-entity id="arrow" geometry="primitive: cone; radiusBottom: 0.1; radiusTop: 0.01; height: 0.2" material="color: #00E5FF" position="0 0 -1" animation="property: rotation; to: 0 360 0; dur: 2000; loop: true; easing: linear"></a-entity>
+    </a-scene>
+    <canvas id="camera-canvas"></canvas>
+    <div id="status-panel">Status: Initializing...</div>
+    <div id="arrow-interface">
+        <div id="direction-arrow" style="font-size: 50px; color: #00E5FF;">↑</div>
     </div>
-
+    <iframe id="map" src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3153.835434509374!2d-122.419415484681!3d37.774929779759!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x80858064c6b7b9d7%3A0x7b8b8b8b8b8b8b8b!2sSan%20Francisco%2C%20CA!5e0!3m2!1sen!2sus!4v1633024000000!5m2!1sen!2sus" allowfullscreen="" loading="lazy"></iframe>
+    <div id="controls">
+        <button id="start-ar">Start AR</button>
+        <button id="instruction">Instruction</button>
+    </div>
     <script>
-        const arScene = document.getElementById('ar-scene');
-        const camera = document.getElementById('camera');
-        const toggleARBtn = document.getElementById('toggle-ar-btn');
-        const arrowInterface = document.getElementById('arrow-interface');
-        const toggleInstructionBtn = document.getElementById('toggle-instruction-btn');
-        const destinationMarker = document.getElementById('destination-marker');
-        const routeLine = document.getElementById('route-line');
-        const detectionCanvas = document.getElementById('detection-canvas');
-        
-        let arActive = false;
-        let instructionActive = false;
+        const canvas = document.getElementById('camera-canvas');
+        const ctx = canvas.getContext('2d');
+        const statusPanel = document.getElementById('status-panel');
+        const directionArrow = document.getElementById('direction-arrow');
+        let cameraStream;
+        let currentHeading = 0;
+        let targetHeading = 0;
+        const destinationLat = 0.000045; // 5m north
+        const destinationLng = 0;
         let currentLat = 0;
-        let currentLon = 0;
-        let destLat = 0;
-        let destLon = 0;
-        let cocoModel = null;
+        let currentLng = 0;
 
-        // ===== GPS TRACKING =====
-        function initGPS() {
-            console.log('📍 Iniciando GPS...');
-            
-            if (navigator.geolocation) {
-                navigator.geolocation.watchPosition(
-                    (position) => {
-                        currentLat = position.coords.latitude;
-                        currentLon = position.coords.longitude;
-                        
-                        console.log(`✅ GPS OK: ${currentLat}, ${currentLon}`);
-                        document.getElementById('gps-dot').classList.remove('error');
-                        document.getElementById('gps-status').textContent = 'OK';
-                        document.getElementById('coords-text').textContent = `Lat: ${currentLat.toFixed(6)}, Lon: ${currentLon.toFixed(6)}`;
-                        
-                        // Definir destino (5 metros ao norte)
-                        if (destLat === 0) {
-                            destLat = currentLat + 0.000045; // ~5 metros
-                            destLon = currentLon;
-                            updateDestination();
-                        }
-                        
-                        // Atualizar distância e linha
-                        if (arActive) {
-                            updateDistance();
-                            updateRouteLine();
-                        }
-                    },
-                    (error) => {
-                        console.error('❌ Erro GPS:', error);
-                        document.getElementById('gps-dot').classList.add('error');
-                        document.getElementById('gps-status').textContent = 'Erro';
-                    },
-                    {
-                        enableHighAccuracy: true,
-                        timeout: 5000,
-                        maximumAge: 0
-                    }
-                );
-            } else {
-                console.error('❌ Geolocalização não suportada');
-            }
-        }
+        // Get user media for camera
+        navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
+            cameraStream = stream;
+            const video = document.createElement('video');
+            video.srcObject = stream;
+            video.play();
+            video.onloadedmetadata = () => {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                draw();
+            };
+        }).catch(err => console.error('Error accessing camera:', err));
 
-        // Atualizar posição do marcador de destino
-        function updateDestination() {
-            console.log(`🎯 Destino definido: ${destLat}, ${destLon}`);
-            destinationMarker.setAttribute('gps-entity-place', `latitude: ${destLat}; longitude: ${destLon};`);
-        }
-
-        // Calcular distância entre dois pontos (Haversine)
-        function calculateDistance(lat1, lon1, lat2, lon2) {
-            const R = 6371; // Raio da Terra em km
-            const dLat = (lat2 - lat1) * Math.PI / 180;
-            const dLon = (lon2 - lon1) * Math.PI / 180;
-            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-                      Math.sin(dLon / 2) * Math.sin(dLon / 2);
-            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-            return R * c * 1000; // Retorna em metros
-        }
-
-        // Atualizar distância no painel
-        function updateDistance() {
-            const distance = calculateDistance(currentLat, currentLon, destLat, destLon);
-            document.getElementById('distance-text').textContent = `Distância: ${distance.toFixed(1)} m`;
-        }
-
-        // Atualizar linha de rota
-        function updateRouteLine() {
-            const distance = calculateDistance(currentLat, currentLon, destLat, destLon);
-            const latDiff = destLat - currentLat;
-            const lonDiff = destLon - currentLon;
-            
-            // Estimativa de posição em 3D (Z = distância em metros / 100)
-            routeLine.setAttribute('line', `start: 0 0 0; end: ${latDiff * 111000} 0 ${lonDiff * 111000}; color: yellow;`);
-        }
-
-        // ===== DETECÇÃO DE OBJETOS =====
-        async function initObjectDetection() {
-            console.log('🎯 Carregando modelo COCO-SSD...');
-            try {
-                cocoModel = await cocoSsd.load();
-                console.log('✅ Modelo COCO-SSD carregado');
-                detectObjects();
-            } catch (error) {
-                console.error('❌ Erro ao carregar modelo:', error);
-            }
-        }
-
-        async function detectObjects() {
-            if (!arActive || !cocoModel) return;
-            
+        // Draw camera feed and arrows
+        function draw() {
             const video = document.querySelector('video');
-            if (video && video.readyState === 4) {
-                detectionCanvas.width = video.videoWidth || 640;
-                detectionCanvas.height = video.videoHeight || 480;
-                
-                const ctx = detectionCanvas.getContext('2d');
-                ctx.drawImage(video, 0, 0, detectionCanvas.width, detectionCanvas.height);
-                
-                const predictions = await cocoModel.detect(detectionCanvas);
-                onObjectsDetected(predictions);
-                
-                // Desenhar bounding boxes
-                ctx.strokeStyle = '#00E5FF';
-                ctx.lineWidth = 2;
-                predictions.forEach(pred => {
-                    const [x, y, w, h] = pred.bbox;
-                    ctx.strokeRect(x, y, w, h);
-                    ctx.fillStyle = '#00E5FF';
-                    ctx.font = '14px Arial';
-                    ctx.fillText(`${pred.class} (${(pred.score * 100).toFixed(1)}%)`, x, y - 5);
-                });
+            if (video) {
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                // Draw compass arrows
+                drawCompassArrows();
             }
-            
-            requestAnimationFrame(detectObjects);
+            requestAnimationFrame(draw);
         }
 
-        function onObjectsDetected(predictions) {
-            const objectsText = predictions
-                .map(p => `${p.class} (${(p.score * 100).toFixed(0)}%)`)
-                .join(', ');
-            document.getElementById('detected-objects').textContent = objectsText || '--';
+        function drawCompassArrows() {
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const arrowLength = 50;
+            ctx.strokeStyle = '#00E5FF';
+            ctx.lineWidth = 3;
+            // North
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY);
+            ctx.lineTo(centerX, centerY - arrowLength);
+            ctx.stroke();
+            // South
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY);
+            ctx.lineTo(centerX, centerY + arrowLength);
+            ctx.stroke();
+            // East
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY);
+            ctx.lineTo(centerX + arrowLength, centerY);
+            ctx.stroke();
+            // West
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY);
+            ctx.lineTo(centerX - arrowLength, centerY);
+            ctx.stroke();
+            // Direction to destination
+            const bearing = calculateBearing(currentLat, currentLng, destinationLat, destinationLng);
+            targetHeading = bearing - currentHeading;
+            // Smooth interpolation
+            currentHeading += (targetHeading - currentHeading) * 0.1;
+            const angle = (currentHeading * Math.PI) / 180;
+            const destX = centerX + Math.sin(angle) * arrowLength;
+            const destY = centerY - Math.cos(angle) * arrowLength;
+            ctx.strokeStyle = '#00E5FF';
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY);
+            ctx.lineTo(destX, destY);
+            ctx.stroke();
         }
 
-        // Toggle AR
-        toggleARBtn.addEventListener('click', () => {
-            arActive = !arActive;
-            
-            if (arActive) {
-                console.log('▶️ AR Iniciado');
-                arScene.classList.add('active');
-                detectionCanvas.classList.add('active');
-                toggleARBtn.textContent = '⏹️ Parar AR';
-                arrowInterface.classList.add('active');
-                initGPS();
-                initObjectDetection();
-            } else {
-                console.log('⏹️ AR Parado');
-                arScene.classList.remove('active');
-                detectionCanvas.classList.remove('active');
-                toggleARBtn.textContent = '▶️ Iniciar AR';
-                arrowInterface.classList.remove('active');
+        function calculateBearing(lat1, lng1, lat2, lng2) {
+            const dLng = (lng2 - lng1) * Math.PI / 180;
+            const lat1Rad = lat1 * Math.PI / 180;
+            const lat2Rad = lat2 * Math.PI / 180;
+            const y = Math.sin(dLng) * Math.cos(lat2Rad);
+            const x = Math.cos(lat1Rad) * Math.sin(lat2Rad) - Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(dLng);
+            const bearing = Math.atan2(y, x) * 180 / Math.PI;
+            return (bearing + 360) % 360;
+        }
+
+        // GPS and heading updates (simplified)
+        if (navigator.geolocation) {
+            navigator.geolocation.watchPosition(position => {
+                currentLat = position.coords.latitude;
+                currentLng = position.coords.longitude;
+                statusPanel.textContent = `Lat: ${currentLat.toFixed(6)}, Lng: ${currentLng.toFixed(6)}`;
+            });
+        }
+
+        // Device orientation for heading
+        window.addEventListener('deviceorientation', event => {
+            if (event.alpha !== null) {
+                currentHeading = event.alpha;
             }
         });
 
-        // Toggle Instruction
-        toggleInstructionBtn.addEventListener('click', () => {
-            if (arActive) {
-                instructionActive = !instructionActive;
-                arrowInterface.classList.toggle('active');
-            }
+        // AR hit test for visual localization
+        const scene = document.querySelector('a-scene');
+        scene.addEventListener('ar-hit-test', event => {
+            // Handle hit test results for localization
+            console.log('AR Hit Test:', event.detail);
         });
 
-        // Log
-        console.log('✅ AR Navigation App Loaded');
-        console.log('🎯 Clique em "Iniciar AR" para começar');
+        // Button events
+        document.getElementById('start-ar').addEventListener('click', () => {
+            // Start AR session
+            scene.enterVR();
+        });
+        document.getElementById('instruction').addEventListener('click', () => {
+            alert('Instructions: Point your camera towards the destination. The arrows will guide you.');
+        });
     </script>
 </body>
 </html>
