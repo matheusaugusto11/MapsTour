@@ -1,516 +1,278 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AR Navegação Guiada</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AR GPS Navigation with Computer Vision</title>
+    <!-- A-Frame and AR.js -->
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+    <!-- TensorFlow.js -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.15.0/dist/tf.min.js"></script>
+    <!-- COCO-SSD -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3"></script>
+    <!-- MediaPipe -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/pose.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1640029077/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3.1620248257/drawing_utils.js"></script>
+    <!-- OpenCV.js for ORB -->
+    <script async src="https://docs.opencv.org/4.8.0/opencv.js" onload="onOpenCvReady()"></script>
+    <!-- Google Maps API (replace YOUR_API_KEY with actual key) -->
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDHpEBTP49TY3aopjq0wvneYk-pGvoFzYY&libraries=geometry"></script>
     <style>
-        * {
+        body {
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
-            background-color: #000;
-            color: #fff;
-            height: 100vh;
+            font-family: Arial, sans-serif;
             overflow: hidden;
         }
-
-        #ar-container {
-            position: relative;
-            width: 100%;
-            height: 100vh;
-            background-color: #00000000;
+        #status-panel {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 1000;
         }
-
-        a-scene {
+        #arrow-interface {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1000;
+        }
+        #map-container {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 40%;
+            z-index: 1000;
+        }
+        #controls {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            z-index: 1000;
+        }
+        #a-scene {
+            position: absolute;
+            top: 0;
+            width: 100%;
+            height: 60%;
+        }
+        #detection-canvas {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 60%;
-            display: none;
+            pointer-events: none;
+            z-index: 999;
         }
-
-        a-scene.active {
-            display: block;
-        }
-
-        #status-panel {
-            position: fixed;
-            top: 20px;
-            left: 20px;
-            background: rgba(0, 0, 0, 0.9);
-            border: 2px solid #00E5FF;
-            border-radius: 8px;
-            padding: 12px 16px;
-            font-size: 14px;
-            z-index: 100;
-            font-family: 'Courier New', monospace;
-        }
-
-        .status-item {
-            display: flex;
-            align-items: center;
-            margin: 6px 0;
-        }
-
-        .status-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            margin-right: 8px;
-            background-color: #00FF00;
-        }
-
-        .status-dot.error {
-            background-color: #FF0000;
-        }
-
-        #arrow-interface {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            z-index: 50;
-            display: none;
-            flex-direction: column;
-            align-items: center;
-            gap: 15px;
-        }
-
-        #arrow-interface.active {
-            display: flex;
-        }
-
-        .arrow-circle {
-            width: 100px;
-            height: 100px;
-            border-radius: 50%;
-            background: radial-gradient(circle, rgba(0, 229, 255, 0.3) 0%, rgba(0, 100, 150, 0.2) 100%);
-            border: 3px solid #00E5FF;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 0 30px rgba(0, 229, 255, 0.6), inset 0 0 20px rgba(0, 229, 255, 0.3);
-            animation: pulse 2s ease-in-out infinite;
-        }
-
-        .arrow-icon {
-            font-size: 50px;
-            color: #00E5FF;
-            text-shadow: 0 0 10px rgba(0, 229, 255, 0.8);
-            animation: bounce 1.5s ease-in-out infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% {
-                box-shadow: 0 0 30px rgba(0, 229, 255, 0.6), inset 0 0 20px rgba(0, 229, 255, 0.3);
-            }
-            50% {
-                box-shadow: 0 0 50px rgba(0, 229, 255, 0.8), inset 0 0 30px rgba(0, 229, 255, 0.5);
-            }
-        }
-
-        @keyframes bounce {
-            0%, 100% {
-                transform: translateY(0);
-            }
-            50% {
-                transform: translateY(-10px);
-            }
-        }
-
-        .instruction-text {
-            background: rgba(0, 20, 60, 0.95);
-            border: 2px solid #00E5FF;
-            border-radius: 12px;
-            padding: 12px 20px;
-            font-size: 16px;
-            font-weight: bold;
-            color: #fff;
-            text-shadow: 0 0 10px rgba(0, 229, 255, 0.5);
-            box-shadow: 0 0 20px rgba(0, 229, 255, 0.3);
-            white-space: nowrap;
-        }
-
-        #instruction {
-            display: none;
-        }
-
-        #map-container {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            width: 100%;
-            height: 40%;
-            background: #111;
-            z-index: 10;
-            border-top: 2px solid #00E5FF;
-            overflow: hidden;
-            display: flex;
-        }
-
-        #map {
-            width: 100%;
-            height: 100%;
-            border: none;
-            flex: 1;
-            min-width: 100%;
-        }
-
-        #controls {
-            position: fixed;
-            bottom: 30px;
-            right: 20px;
-            z-index: 100;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        button {
-            padding: 12px 24px;
-            font-size: 16px;
-            font-weight: bold;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            background: #00E5FF;
-            color: #000;
-            box-shadow: 0 0 15px rgba(0, 229, 255, 0.4);
-        }
-
-        button:hover {
-            background: #00D4FF;
-            box-shadow: 0 0 25px rgba(0, 229, 255, 0.6);
-        }
-
-        button:active {
-            transform: scale(0.98);
-        }
-
         @media (max-width: 768px) {
             #status-panel {
                 font-size: 12px;
-                padding: 10px 12px;
-                top: 10px;
-                left: 10px;
-                border-radius: 6px;
             }
-
-            .status-item {
-                margin: 4px 0;
-            }
-
-            .status-dot {
-                width: 8px;
-                height: 8px;
-                margin-right: 6px;
-            }
-
-            .arrow-circle {
-                width: 80px;
-                height: 80px;
-                border: 2px solid #00E5FF;
-            }
-
-            .arrow-icon {
-                font-size: 40px;
-            }
-
-            .instruction-text {
-                font-size: 14px;
-                padding: 10px 16px;
-                border-radius: 10px;
-                max-width: 85vw;
-            }
-
             #map-container {
-                height: 35%;
+                height: 50%;
             }
-
-            a-scene {
-                height: 65%;
-            }
-
-            #controls {
-                bottom: 15px;
-                right: 10px;
-                gap: 8px;
-            }
-
-            button {
-                padding: 10px 18px;
-                font-size: 14px;
-                border-radius: 6px;
-                min-height: 44px;
+            #a-scene {
+                height: 50%;
             }
         }
-
         @media (max-width: 480px) {
             #status-panel {
-                font-size: 11px;
-                padding: 8px 10px;
-                top: 8px;
-                left: 8px;
+                font-size: 10px;
             }
-
-            .status-dot {
-                width: 7px;
-                height: 7px;
-                margin-right: 5px;
+            #map-container {
+                height: 60%;
             }
-
-            .arrow-circle {
-                width: 70px;
-                height: 70px;
-                border: 2px solid #00E5FF;
-            }
-
-            .arrow-icon {
-                font-size: 35px;
-            }
-
-            .instruction-text {
-                font-size: 12px;
-                padding: 8px 12px;
-                max-width: 90vw;
-            }
-
-            #controls {
-                bottom: 10px;
-                right: 8px;
-                gap: 6px;
-            }
-
-            button {
-                padding: 8px 14px;
-                font-size: 12px;
+            #a-scene {
+                height: 40%;
             }
         }
     </style>
 </head>
 <body>
-    <div id="ar-container">
-        <!-- AR Scene -->
-        <a-scene id="ar-scene" embedded arjs="sourceType: webcam; debugUIEnabled: false;" vr-mode-ui="enabled: false;">
-            <a-camera id="camera" gps-camera rotation-reader></a-camera>
-            
-            <!-- DESTINO - Objeto 3D no ponto de destino -->
-            <a-entity id="destination-marker" gps-entity-place="latitude: 0; longitude: 0;">
-                <a-box color="red" scale="0.5 0.5 0.5"></a-box>
-            </a-entity>
-
-            <!-- LINHA CONECTANDO CÂMERA AO DESTINO -->
-            <a-entity id="route-line" line="start: 0 0 0; end: 0 0 0; color: yellow;"></a-entity>
-            <a-entity id="arrow-3d" position="0 1.5 -3" rotation="0 0 0"><a-cone color="#00E5FF" radius-bottom="0.3" radius-top="0" height="1.5" rotation="90 0 0"></a-cone></a-entity>
-        </a-scene>
-
-        <!-- Status Panel -->
-        <div id="status-panel">
-            <div class="status-item">
-                <div class="status-dot" id="gps-dot"></div>
-                <span>📍 GPS: <span id="gps-status">Buscando...</span></span>
-            </div>
-            <div class="status-item">
-                <div class="status-dot"></div>
-                <span>🧭 Bussola: OK</span>
-            </div>
-            <div class="status-item" id="coords-item" style="font-size: 11px; margin-top: 8px;">
-                <span id="coords-text">Lat: --, Lon: --</span>
-            </div>
-            <div class="status-item" id="distance-item" style="font-size: 11px;">
-                <span id="distance-text">Distância: -- m</span>
-            </div>
-        </div>
-
-        <!-- Arrow Interface (NOVA - Fixa na tela) -->
-        <div id="arrow-interface">
-            <div class="arrow-circle">
-                <div class="arrow-icon">➜</div>
-            </div>
-            <div class="instruction-text">
-                ⬆️ Vire um pouco a direita
-            </div>
-        </div>
-
-        <!-- Instruction (LEGADO - não usado mais) -->
-        <div id="instruction"></div>
-
-        <!-- Map Container -->
-        <div id="map-container">
-            <iframe 
-                id="map" 
-                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3935.4453753449963!2d-37.07000032346808!3d-10.914534889024628!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x71e1587981151d5%3A0x4a501367f076adff!2sAracaju%2C%20SE!5e0!3m2!1spt-BR!2sbr!4v1713516000000" 
-                allowfullscreen="" 
-                loading="lazy" 
-                referrerpolicy="no-referrer-when-downgrade">
-            </iframe>
-        </div>
-
-        <!-- Controls -->
-        <div id="controls">
-            <button id="toggle-ar-btn">▶️ Iniciar AR</button>
-            <button id="toggle-instruction-btn">💬 Instrução</button>
-        </div>
+    <!-- Status Panel -->
+    <div id="status-panel">
+        <div>GPS: <span id="gps-status">Loading...</span></div>
+        <div>Compass: <span id="compass">0°</span></div>
+        <div>Coords: <span id="coords">0, 0</span></div>
+        <div>Distance: <span id="distance">0 km</span></div>
+    </div>
+    <!-- Arrow Interface -->
+    <div id="arrow-interface">
+        <a-entity id="arrow" geometry="primitive: cone" material="color: cyan; opacity: 0.8" scale="0.5 1 0.5" position="0 0 -5" animation="property: scale; to: 0.6 1.2 0.6; dur: 1000; easing: easeInOutQuad; loop: true"></a-entity>
+    </div>
+    <!-- A-Scene -->
+    <a-scene id="a-scene" embedded arjs="sourceType: webcam; debugUIEnabled: false;">
+        <a-camera gps-camera="simulateLatitude: 35.6895; simulateLongitude: 139.6917;" rotation-reader></a-camera>
+        <!-- Navigation Overlay -->
+        <a-entity id="nav-overlay" position="0 0 -10" text="value: Turn left in 100m; align: center; color: white; width: 6"></a-entity>
+    </a-scene>
+    <!-- Detection Canvas -->
+    <canvas id="detection-canvas"></canvas>
+    <!-- Map Container -->
+    <div id="map-container"></div>
+    <!-- Controls -->
+    <div id="controls">
+        <button onclick="startNavigation()">Start Nav</button>
+        <button onclick="stopNavigation()">Stop Nav</button>
     </div>
 
     <script>
-        const arScene = document.getElementById('ar-scene');
-        const camera = document.getElementById('camera');
-        const toggleARBtn = document.getElementById('toggle-ar-btn');
-        const arrowInterface = document.getElementById('arrow-interface');
-        const toggleInstructionBtn = document.getElementById('toggle-instruction-btn');
-        const destinationMarker = document.getElementById('destination-marker');
-        const routeLine = document.getElementById('route-line');
-        
-        let arActive = false;
-        let instructionActive = false;
-        let currentLat = 0;
-        let currentLon = 0;
-        let destLat = 0;
-        let destLon = 0;
-        let deviceAlpha = 0;
-        let currentArrowRotation = 0;
+        let cocoSsdModel;
+        let pose;
+        let video;
+        let canvas;
+        let ctx;
+        let map;
+        let directionsService;
+        let directionsRenderer;
+        let currentPosition;
+        let destination = { lat: 35.6895, lng: 139.6917 }; // Example destination
+        let isNavigating = false;
 
-        // Device orientation listener
-        window.addEventListener('deviceorientation', (event) => {
-            deviceAlpha = event.alpha || 0;
-        });
+        // Initialize
+        async function init() {
+            // Load COCO-SSD
+            cocoSsdModel = await cocoSsd.load();
 
-        // ===== GPS TRACKING =====
-        function initGPS() {
-            console.log('📍 Iniciando GPS...');
-            
+            // MediaPipe Pose
+            pose = new Pose({
+                locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/${file}`
+            });
+            pose.setOptions({
+                modelComplexity: 1,
+                smoothLandmarks: true,
+                enableSegmentation: false,
+                smoothSegmentation: false,
+                minDetectionConfidence: 0.5,
+                minTrackingConfidence: 0.5
+            });
+            pose.onResults(onPoseResults);
+
+            // Video and Canvas
+            video = document.createElement('video');
+            video.width = window.innerWidth;
+            video.height = window.innerHeight * 0.6;
+            canvas = document.getElementById('detection-canvas');
+            ctx = canvas.getContext('2d');
+            canvas.width = video.width;
+            canvas.height = video.height;
+
+            // GPS
             if (navigator.geolocation) {
-                navigator.geolocation.watchPosition(
-                    (position) => {
-                        currentLat = position.coords.latitude;
-                        currentLon = position.coords.longitude;
-                        
-                        console.log(`✅ GPS OK: ${currentLat}, ${currentLon}`);
-                        document.getElementById('gps-dot').classList.remove('error');
-                        document.getElementById('gps-status').textContent = 'OK';
-                        document.getElementById('coords-text').textContent = `Lat: ${currentLat.toFixed(6)}, Lon: ${currentLon.toFixed(6)}`;
-                        
-                        // Definir destino (5 metros ao norte)
-                        if (destLat === 0) {
-                            destLat = currentLat + 0.000045; // ~5 metros
-                            destLon = currentLon;
-                            updateDestination();
-                        }
-                        
-                        // Atualizar distância e linha
-                        if (arActive) {
-                            updateDistance();
-                            updateRouteLine();
-                            calcularBearing();
-                        }
-                    },
-                    (error) => {
-                        console.error('❌ Erro GPS:', error);
-                        document.getElementById('gps-dot').classList.add('error');
-                        document.getElementById('gps-status').textContent = 'Erro';
-                    },
-                    {
-                        enableHighAccuracy: true,
-                        timeout: 5000,
-                        maximumAge: 0
+                navigator.geolocation.watchPosition(updatePosition, errorPosition, { enableHighAccuracy: true });
+            }
+
+            // Google Maps
+            map = new google.maps.Map(document.getElementById('map-container'), {
+                center: { lat: 35.6895, lng: 139.6917 },
+                zoom: 15
+            });
+            directionsService = new google.maps.DirectionsService();
+            directionsRenderer = new google.maps.DirectionsRenderer({ map: map, suppressMarkers: true });
+
+            // Start detection loop
+            detectObjects();
+        }
+
+        function onOpenCvReady() {
+            // ORB Feature Detection
+            // Implement ORB here if needed
+        }
+
+        function updatePosition(position) {
+            currentPosition = { lat: position.coords.latitude, lng: position.coords.longitude };
+            document.getElementById('coords').textContent = `${currentPosition.lat.toFixed(4)}, ${currentPosition.lng.toFixed(4)}`;
+            document.getElementById('gps-status').textContent = 'Active';
+            // Visual Localization: Combine with vision
+            // Plane Detection: Use AR.js or implement
+        }
+
+        function errorPosition(error) {
+            document.getElementById('gps-status').textContent = 'Error';
+        }
+
+        async function detectObjects() {
+            if (video.readyState >= 2) {
+                const predictions = await cocoSsdModel.detect(video);
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                predictions.forEach(pred => {
+                    if (['car', 'person', 'traffic light', 'building'].includes(pred.class)) {
+                        ctx.strokeStyle = 'red';
+                        ctx.lineWidth = 2;
+                        ctx.strokeRect(pred.bbox[0], pred.bbox[1], pred.bbox[2], pred.bbox[3]);
+                        ctx.fillStyle = 'red';
+                        ctx.fillText(pred.class, pred.bbox[0], pred.bbox[1] - 5);
                     }
-                );
-            } else {
-                console.error('❌ Geolocalização não suportada');
+                });
+            }
+            requestAnimationFrame(detectObjects);
+        }
+
+        function onPoseResults(results) {
+            // Draw pose landmarks on canvas
+            if (results.poseLandmarks) {
+                drawConnectors(ctx, results.poseLandmarks, POSE_CONNECTIONS, { color: '#00FF00', lineWidth: 4 });
+                drawLandmarks(ctx, results.poseLandmarks, { color: '#FF0000', lineWidth: 2 });
             }
         }
 
-        // Calcular bearing e rotacionar seta
-        function calcularBearing() {
-            const dLat = destLat - currentLat;
-            const dLon = destLon - currentLon;
-            const bearing = Math.atan2(dLon, dLat) * 180 / Math.PI;
-            let normalizedBearing = (bearing + 360) % 360;
-            const relativeBearing = normalizedBearing - deviceAlpha;
-            const targetRotation = (relativeBearing + 360) % 360;
-            currentArrowRotation = lerp(currentArrowRotation, targetRotation, 0.1);
-            document.getElementById('arrow-3d').setAttribute('rotation', `0 ${currentArrowRotation} 0`);
+        function startNavigation() {
+            if (!currentPosition) return;
+            isNavigating = true;
+            directionsService.route({
+                origin: currentPosition,
+                destination: destination,
+                travelMode: 'DRIVING'
+            }, (response, status) => {
+                if (status === 'OK') {
+                    directionsRenderer.setDirections(response);
+                    updateNavigationOverlay(response);
+                }
+            });
         }
 
-        // Linear interpolation function
-        function lerp(start, end, factor) {
-            return start + (end - start) * factor;
+        function stopNavigation() {
+            isNavigating = false;
+            directionsRenderer.setMap(null);
         }
 
-        // Atualizar posição do marcador de destino
-        function updateDestination() {
-            console.log(`🎯 Destino definido: ${destLat}, ${destLon}`);
-            destinationMarker.setAttribute('gps-entity-place', `latitude: ${destLat}; longitude: ${destLon};`);
-        }
-
-        // Calcular distância entre dois pontos (Haversine)
-        function calculateDistance(lat1, lon1, lat2, lon2) {
-            const R = 6371; // Raio da Terra em km
-            const dLat = (lat2 - lat1) * Math.PI / 180;
-            const dLon = (lon2 - lon1) * Math.PI / 180;
-            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-                      Math.sin(dLon / 2) * Math.sin(dLon / 2);
-            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-            return R * c * 1000; // Retorna em metros
-        }
-
-        // Atualizar distância no painel
-        function updateDistance() {
-            const distance = calculateDistance(currentLat, currentLon, destLat, destLon);
-            document.getElementById('distance-text').textContent = `Distância: ${distance.toFixed(1)} m`;
-        }
-
-        // Atualizar linha de rota
-        function updateRouteLine() {
-            const distance = calculateDistance(currentLat, currentLon, destLat, destLon);
-            const latDiff = destLat - currentLat;
-            const lonDiff = destLon - currentLon;
-            
-            // Estimativa de posição em 3D (Z = distância em metros / 100)
-            routeLine.setAttribute('line', `start: 0 0 0; end: ${latDiff * 111000} 0 ${lonDiff * 111000}; color: yellow;`);
-        }
-
-        // Toggle AR
-        toggleARBtn.addEventListener('click', () => {
-            arActive = !arActive;
-            
-            if (arActive) {
-                console.log('▶️ AR Iniciado');
-                arScene.classList.add('active');
-                toggleARBtn.textContent = '⏹️ Parar AR';
-                arrowInterface.classList.add('active');
-                initGPS();
-            } else {
-                console.log('⏹️ AR Parado');
-                arScene.classList.remove('active');
-                toggleARBtn.textContent = '▶️ Iniciar AR';
-                arrowInterface.classList.remove('active');
+        function updateNavigationOverlay(response) {
+            // Update arrow and text based on directions
+            const steps = response.routes[0].legs[0].steps;
+            if (steps.length > 0) {
+                const nextStep = steps[0];
+                document.getElementById('nav-overlay').setAttribute('text', 'value', nextStep.instructions);
+                document.getElementById('distance').textContent = `${(nextStep.distance.value / 1000).toFixed(1)} km`;
             }
+        }
+
+        // Compass (simplified)
+        window.addEventListener('deviceorientation', (event) => {
+            document.getElementById('compass').textContent = `${Math.round(event.alpha)}°`;
         });
 
-        // Toggle Instruction
-        toggleInstructionBtn.addEventListener('click', () => {
-            if (arActive) {
-                instructionActive = !instructionActive;
-                arrowInterface.classList.toggle('active');
-            }
+        // Start video
+        navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
+            video.srcObject = stream;
+            video.play();
+            const camera = new Camera(video, {
+                onFrame: async () => {
+                    await pose.send({ image: video });
+                },
+                width: video.width,
+                height: video.height
+            });
+            camera.start();
         });
 
-        // Log
-        console.log('✅ AR Navigation App Loaded');
-        console.log('🎯 Clique em "Iniciar AR" para começar');
+        window.onload = init;
     </script>
 </body>
 </html>
