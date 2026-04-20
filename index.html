@@ -3,296 +3,171 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Navegação AR com Mapa</title>
-    <!-- Scripts necessários -->
-    <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
-    <script src="https://unpkg.com/aframe-look-at-component@0.8.0/dist/aframe-look-at-component.min.js"></script>
+    <title>Navegação AR Simplificada</title>
+    <!-- Incluir A-Frame para AR -->
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <!-- Incluir AR.js para AR baseada em localização -->
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+    <!-- TensorFlow.js e COCO-SSD para detecção de objetos -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
-    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDHpEBTP49TY3aopjq0wvneYk-pGvoFzYY&libraries=geometry,directions"></script>
+    <!-- Google Maps API (substitua YOUR_API_KEY pela sua chave) -->
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDHpEBTP49TY3aopjq0wvneYk-pGvoFzYY&callback=initMap"></script>
     <style>
-        body {
-            margin: 0;
-            padding: 0;
-            font-family: Arial, sans-serif;
-            overflow: hidden;
-        }
-        #initial-screen {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(45deg, #00bcd4, #0097a7);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-        #start-btn {
-            padding: 15px 30px;
-            font-size: 18px;
-            background: #fff;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-        #main-app {
-            display: none;
-            width: 100%;
-            height: 100%;
-        }
-        #map-container {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 50%;
-            z-index: 1;
-        }
-        #ar-container {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            height: 50%;
-            z-index: 2;
-        }
-        #a-scene {
-            width: 100%;
-            height: 100%;
-            position: relative;
-        }
-        #status-panel {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            background: rgba(0, 0, 0, 0.7);
-            color: white;
-            padding: 10px;
-            border-radius: 5px;
-            z-index: 10;
-        }
-        #exit-btn {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            padding: 10px;
-            background: red;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            z-index: 10;
-        }
-        .arrow {
-            position: absolute;
-            font-size: 24px;
-            color: red;
-        }
+        body { margin: 0; font-family: Arial, sans-serif; }
+        #camera { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+        #ar-scene { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 2; }
+        #map { position: fixed; bottom: 0; left: 0; width: 100%; height: 40%; z-index: 3; }
+        #status-panel { position: fixed; top: 10px; right: 10px; background: rgba(0,0,0,0.7); color: white; padding: 10px; z-index: 4; }
+        #exit-btn { position: fixed; top: 10px; left: 10px; z-index: 5; }
+        #initial-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: black; color: white; display: flex; justify-content: center; align-items: center; z-index: 10; }
+        .arrow { font-size: 50px; color: cyan; position: fixed; bottom: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 6; }
     </style>
 </head>
 <body>
     <!-- Tela inicial -->
     <div id="initial-screen">
-        <h1>Bem-vindo ao Navegador AR</h1>
-        <button id="start-btn">Iniciar</button>
+        <div>
+            <h1>Bem-vindo à Navegação AR</h1>
+            <button onclick="startApp()">Iniciar</button>
+        </div>
     </div>
 
-    <!-- Aplicação principal -->
-    <div id="main-app">
-        <!-- Painel de status -->
-        <div id="status-panel">
-            <div>GPS: <span id="gps-lat">--</span>, <span id="gps-lng">--</span></div>
-            <div>Bússola: <span id="compass">--</span>°</div>
-            <div>Distância: <span id="distance">--</span> m</div>
-            <div>Confiança: <span id="confidence">--</span>%</div>
-        </div>
-        <!-- Botão sair -->
-        <button id="exit-btn">Sair</button>
-        <!-- Container do mapa -->
-        <div id="map-container"></div>
-        <!-- Container AR -->
-        <div id="ar-container">
-            <a-scene id="a-scene" embedded vr-mode-ui="enabled: false" arjs="sourceType: webcam; debugUIEnabled: false;">
-                <!-- Câmera AR -->
-                <a-camera id="camera" gps-camera="simulateLatitude: -10.9472; simulateLongitude: -37.0731;" rotation-reader></a-camera>
-                <!-- Trilha cyan 3D -->
-                <a-entity id="trail" line="color: cyan; opacity: 0.8;">
-                    <a-sphere position="0 0 -5" radius="0.1" color="cyan"></a-sphere>
-                </a-entity>
-                <!-- Setas dinâmicas -->
-                <a-entity id="arrows" position="0 0 -3">
-                    <a-text value="↑" position="0 1 0" align="center" color="red" look-at="#camera"></a-text>
-                    <a-text value="←" position="-1 0 0" align="center" color="red" look-at="#camera"></a-text>
-                    <a-text value="→" position="1 0 0" align="center" color="red" look-at="#camera"></a-text>
-                </a-entity>
-                <!-- Marcadores 3D para POIs -->
-                <a-entity gps-entity-place="latitude: -10.9472; longitude: -37.0731;" look-at="#camera">
-                    <a-sphere radius="0.5" color="green" animation="property: scale; to: 1.2 1.2 1.2; dur: 1000; loop: true;"></a-sphere>
-                    <a-text value="POI 1" position="0 1 0" align="center"></a-text>
-                </a-entity>
-                <a-entity gps-entity-place="latitude: -10.9500; longitude: -37.0800;" look-at="#camera">
-                    <a-sphere radius="0.5" color="green" animation="property: scale; to: 1.2 1.2 1.2; dur: 1000; loop: true;"></a-sphere>
-                    <a-text value="POI 2" position="0 1 0" align="center"></a-text>
-                </a-entity>
-                <a-entity gps-entity-place="latitude: -10.9600; longitude: -37.0900;" look-at="#camera">
-                    <a-sphere radius="0.5" color="green" animation="property: scale; to: 1.2 1.2 1.2; dur: 1000; loop: true;"></a-sphere>
-                    <a-text value="POI 3" position="0 1 0" align="center"></a-text>
-                </a-entity>
-            </a-scene>
-        </div>
+    <!-- Câmera ao vivo -->
+    <video id="camera" autoplay playsinline></video>
+
+    <!-- Cena AR -->
+    <a-scene id="ar-scene" embedded arjs="sourceType: webcam; debugUIEnabled: false;">
+        <!-- Trilha cyan 3D apontando para destino -->
+        <a-entity id="trail" geometry="primitive: cylinder; radius: 0.01; height: 10" material="color: cyan" position="0 0 -5" rotation="0 0 0"></a-entity>
+        <!-- 3 POIs com marcadores -->
+        <a-entity gps-entity-place="latitude: -23.5505; longitude: -46.6333" geometry="primitive: sphere; radius: 0.5" material="color: red"></a-entity>
+        <a-entity gps-entity-place="latitude: -23.5510; longitude: -46.6340" geometry="primitive: sphere; radius: 0.5" material="color: green"></a-entity>
+        <a-entity gps-entity-place="latitude: -23.5520; longitude: -46.6350" geometry="primitive: sphere; radius: 0.5" material="color: blue"></a-entity>
+    </a-scene>
+
+    <!-- Mapa -->
+    <div id="map"></div>
+
+    <!-- Painel de status -->
+    <div id="status-panel">
+        <div>GPS: <span id="gps">Simulado</span></div>
+        <div>Bússola: <span id="compass">0°</span></div>
+        <div>Distância: <span id="distance">0m</span></div>
+        <div>Confiança: <span id="confidence">0%</span></div>
     </div>
+
+    <!-- Setas dinâmicas -->
+    <div id="arrows" class="arrow">↑</div>
+
+    <!-- Botão sair -->
+    <button id="exit-btn" onclick="exitApp()">Sair</button>
 
     <script>
-        // Variáveis globais
-        let map, directionsService, directionsRenderer;
-        let currentPosition = { lat: -10.9472, lng: -37.0731 }; // Simulação inicial
-        let destination = { lat: -10.9500, lng: -37.0800 }; // Destino exemplo
-        let compassHeading = 0;
+        let video = document.getElementById('camera');
+        let arScene = document.getElementById('ar-scene');
+        let map;
         let cocoModel;
-        let video;
+        let isSimulating = true; // Começar simulando GPS
+        let userLat = -23.5500; // Simulado
+        let userLng = -46.6320;
+        let destinationLat = -23.5510;
+        let destinationLng = -46.6340;
 
-        // Inicializar tela inicial
-        document.getElementById('start-btn').addEventListener('click', () => {
+        // Iniciar câmera
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+            } catch (err) {
+                console.error('Erro ao acessar câmera:', err);
+            }
+        }
+
+        // Iniciar app
+        function startApp() {
             document.getElementById('initial-screen').style.display = 'none';
-            document.getElementById('main-app').style.display = 'block';
-            initApp();
-        });
-
-        // Botão sair
-        document.getElementById('exit-btn').addEventListener('click', () => {
-            location.reload();
-        });
-
-        // Inicializar aplicação
-        async function initApp() {
-            // Inicializar mapa
+            startCamera();
             initMap();
-            // Carregar modelo COCO-SSD
-            cocoModel = await cocoSSD.load();
-            // Iniciar GPS e bússola
-            initGPS();
-            initCompass();
-            // Iniciar detecção de objetos
-            initObjectDetection();
-            // Atualizar setas
-            updateArrows();
+            loadCocoSSD();
+            updateStatus();
+            setInterval(updateArrows, 1000);
         }
 
-        // Inicializar Google Maps
+        // Sair do app
+        function exitApp() {
+            location.reload();
+        }
+
+        // Inicializar mapa
         function initMap() {
-            map = new google.maps.Map(document.getElementById('map-container'), {
-                center: currentPosition,
-                zoom: 15,
-                mapTypeId: google.maps.MapTypeId.ROADMAP
+            map = new google.maps.Map(document.getElementById('map'), {
+                center: { lat: userLat, lng: userLng },
+                zoom: 15
             });
-            directionsService = new google.maps.DirectionsService();
-            directionsRenderer = new google.maps.DirectionsRenderer({
-                map: map,
-                polylineOptions: { strokeColor: 'blue' }
-            });
-            // Desenhar rota
-            calculateAndDisplayRoute();
-        }
-
-        // Calcular e exibir rota
-        function calculateAndDisplayRoute() {
+            // Trajeto azul
+            const directionsService = new google.maps.DirectionsService();
+            const directionsRenderer = new google.maps.DirectionsRenderer({ map: map, polylineOptions: { strokeColor: 'blue' } });
             directionsService.route({
-                origin: currentPosition,
-                destination: destination,
-                travelMode: google.maps.TravelMode.DRIVING
+                origin: { lat: userLat, lng: userLng },
+                destination: { lat: destinationLat, lng: destinationLng },
+                travelMode: google.maps.TravelMode.WALKING
             }, (response, status) => {
                 if (status === 'OK') {
                     directionsRenderer.setDirections(response);
-                } else {
-                    console.error('Erro ao calcular rota:', status);
                 }
             });
         }
 
-        // Inicializar GPS
-        function initGPS() {
-            if (navigator.geolocation) {
-                navigator.geolocation.watchPosition((position) => {
-                    currentPosition = {
-                        lat: position.coords.latitude,
-                        lng: position.coords.longitude
-                    };
-                    updateStatusPanel();
-                    map.setCenter(currentPosition);
-                    calculateAndDisplayRoute();
-                }, () => {
-                    // Simular GPS se não disponível
-                    setInterval(() => {
-                        currentPosition.lat += 0.0001;
-                        updateStatusPanel();
-                        map.setCenter(currentPosition);
-                        calculateAndDisplayRoute();
-                    }, 1000);
-                }, { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 });
+        // Carregar COCO-SSD
+        async function loadCocoSSD() {
+            cocoModel = await cocoSSD.load();
+            detectObjects();
+        }
+
+        // Detecção de objetos
+        async function detectObjects() {
+            if (video.readyState === 4) {
+                const predictions = await cocoModel.detect(video);
+                // Simplificado: apenas log
+                console.log(predictions);
+                // Atualizar confiança
+                document.getElementById('confidence').textContent = predictions.length > 0 ? 'Alta' : 'Baixa';
             }
+            requestAnimationFrame(detectObjects);
         }
 
-        // Inicializar bússola
-        function initCompass() {
-            if (window.DeviceOrientationEvent) {
-                window.addEventListener('deviceorientation', (event) => {
-                    compassHeading = event.alpha || 0;
-                    updateStatusPanel();
-                    updateArrows();
-                });
-            } else {
-                // Simular bússola
-                setInterval(() => {
-                    compassHeading = (compassHeading + 1) % 360;
-                    updateStatusPanel();
-                    updateArrows();
-                }, 100);
-            }
+        // Atualizar status
+        function updateStatus() {
+            document.getElementById('gps').textContent = `${userLat.toFixed(4)}, ${userLng.toFixed(4)}`;
+            // Simular bússola
+            document.getElementById('compass').textContent = Math.floor(Math.random() * 360) + '°';
+            // Calcular distância
+            const dist = google.maps.geometry.spherical.computeDistanceBetween(
+                new google.maps.LatLng(userLat, userLng),
+                new google.maps.LatLng(destinationLat, destinationLng)
+            );
+            document.getElementById('distance').textContent = Math.round(dist) + 'm';
         }
 
-        // Atualizar painel de status
-        function updateStatusPanel() {
-            document.getElementById('gps-lat').textContent = currentPosition.lat.toFixed(6);
-            document.getElementById('gps-lng').textContent = currentPosition.lng.toFixed(6);
-            document.getElementById('compass').textContent = compassHeading.toFixed(1);
-            document.getElementById('distance').textContent = google.maps.geometry.spherical.computeDistanceBetween(
-                new google.maps.LatLng(currentPosition.lat, currentPosition.lng),
-                new google.maps.LatLng(destination.lat, destination.lng)
-            ).toFixed(0);
-            document.getElementById('confidence').textContent = '95'; // Exemplo
-        }
-
-        // Atualizar setas dinâmicas
+        // Atualizar setas
         function updateArrows() {
-            const camera = document.getElementById('camera');
-            // Lógica para ajustar setas baseada em GPS e bússola
-            // Simplificado
+            // Simulação simples
+            const arrows = ['↑', '←', '→', '↓'];
+            document.getElementById('arrows').textContent = arrows[Math.floor(Math.random() * 4)];
         }
 
-        // Inicializar detecção de objetos
-        function initObjectDetection() {
-            video = document.createElement('video');
-            video.width = 640;
-            video.height = 480;
-            navigator.mediaDevices.getUserMedia({ video: true }).then((stream) => {
-                video.srcObject = stream;
-                video.play();
-                detectObjects();
+        // Para GPS real (descomente quando testar)
+        /*
+        if ('geolocation' in navigator) {
+            navigator.geolocation.watchPosition((position) => {
+                userLat = position.coords.latitude;
+                userLng = position.coords.longitude;
+                updateStatus();
+                // Atualizar mapa e AR
             });
         }
-
-        // Detectar objetos
-        async function detectObjects() {
-            const predictions = await cocoModel.detect(video);
-            // Processar predições e atualizar AR
-            setTimeout(detectObjects, 100);
-        }
+        */
     </script>
 </body>
 </html>
