@@ -184,6 +184,7 @@
             <div>Heading: <span id="heading">--</span>°</div>
             <div>Distância ao POI: <span id="distance">--</span> m</div>
             <div>Objetos Detectados: <span id="objects">0</span></div>
+            <div>Mão: <span id="hand-status">Não detectada</span></div>
         </div>
         
         <!-- Setas -->
@@ -198,6 +199,8 @@
     <script src="https://raw.githack.com/jeromeetienne/AR.js/master/aframe/build/aframe-ar.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.11.0/dist/tf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.2/dist/coco-ssd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/handpose@0.1.7/dist/handpose.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDHpEBTP49TY3aopjq0wvneYk-pGvoFzYY"></script>
     
     <script>
@@ -382,11 +385,94 @@
             initGPS();
             initMap();
             initAR();
+            initThreeOverlay();
+            initHandTracking();
         });
         
         document.getElementById('exit-btn').addEventListener('click', () => {
             location.reload();
         });
+
+        // Three.js overlay para objeto na mão
+        let threeRenderer, threeScene, threeOrthoCamera, handObject;
+
+        function initThreeOverlay() {
+            const container = document.getElementById('camera');
+            const w = container.offsetWidth || window.innerWidth;
+            const h = container.offsetHeight || Math.round(window.innerHeight * 0.6);
+
+            const canvas = document.createElement('canvas');
+            canvas.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:3;';
+            container.appendChild(canvas);
+
+            threeRenderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+            threeRenderer.setSize(w, h);
+
+            threeScene = new THREE.Scene();
+            threeOrthoCamera = new THREE.OrthographicCamera(-w / 2, w / 2, h / 2, -h / 2, -500, 500);
+
+            threeScene.add(new THREE.AmbientLight(0xffffff, 0.6));
+            const dirLight = new THREE.DirectionalLight(0x00eeff, 1.2);
+            dirLight.position.set(1, 2, 3);
+            threeScene.add(dirLight);
+
+            const geo = new THREE.BoxGeometry(55, 55, 55);
+            const mat = new THREE.MeshPhongMaterial({ color: 0x00ffcc, transparent: true, opacity: 0.88, shininess: 120 });
+            handObject = new THREE.Mesh(geo, mat);
+            handObject.visible = false;
+            threeScene.add(handObject);
+
+            (function animate() {
+                requestAnimationFrame(animate);
+                if (handObject.visible) {
+                    handObject.rotation.x += 0.02;
+                    handObject.rotation.y += 0.03;
+                }
+                threeRenderer.render(threeScene, threeOrthoCamera);
+            })();
+        }
+
+        // Rastreamento de mão
+        let handModel;
+
+        async function initHandTracking() {
+            document.getElementById('hand-status').textContent = 'Carregando...';
+            handModel = await handpose.load();
+            document.getElementById('hand-status').textContent = 'Pronto';
+            trackHands();
+        }
+
+        async function trackHands() {
+            if (video.readyState === 4 && handModel) {
+                const predictions = await handModel.estimateHands(video);
+
+                if (predictions.length > 0 && handObject) {
+                    const lm = predictions[0].landmarks;
+                    // Centro da palma: pulso (0) + base dos dedos (5, 9, 13, 17)
+                    const palmIdx = [0, 5, 9, 13, 17];
+                    let px = 0, py = 0;
+                    palmIdx.forEach(i => { px += lm[i][0]; py += lm[i][1]; });
+                    px /= palmIdx.length;
+                    py /= palmIdx.length;
+
+                    const container = document.getElementById('camera');
+                    const cw = container.offsetWidth;
+                    const ch = container.offsetHeight;
+                    const vw = video.videoWidth || 640;
+                    const vh = video.videoHeight || 480;
+
+                    // Mapeia coordenadas do vídeo para ortho (origem no centro)
+                    handObject.position.x = (px / vw) * cw - cw / 2;
+                    handObject.position.y = -((py / vh) * ch - ch / 2);
+                    handObject.visible = true;
+                    document.getElementById('hand-status').textContent = 'Detectada ✓';
+                } else {
+                    if (handObject) handObject.visible = false;
+                    document.getElementById('hand-status').textContent = 'Nao detectada';
+                }
+            }
+            requestAnimationFrame(trackHands);
+        }
     </script>
 </body>
 </html>
