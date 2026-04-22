@@ -2,80 +2,72 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Maps Tour AR - Aracaju, Sergipe</title>
     <style>
-        /* Estilos gerais */
         html, body {
             margin: 0;
             padding: 0;
             height: 100%;
             overflow: hidden;
-        }
-
-        body {
-            font-family: Arial, sans-serif;
             background: #000;
+            font-family: Arial, sans-serif;
             color: #fff;
         }
-        
-        /* Tela inicial */
+
+        /* ── Tela inicial ── */
         #initial-screen {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            inset: 0;
             background: linear-gradient(45deg, #1e3c72, #2a5298);
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            z-index: 1000;
+            z-index: 100;
         }
-        
-        #initial-screen h1 {
-            font-size: 2.5em;
-            margin-bottom: 20px;
-        }
-        
+        #initial-screen h1 { font-size: 2.5em; margin-bottom: 20px; text-align: center; }
         #start-btn {
             padding: 15px 30px;
             font-size: 1.2em;
             background: #4CAF50;
             color: white;
             border: none;
-            border-radius: 5px;
+            border-radius: 8px;
             cursor: pointer;
+            touch-action: manipulation;
         }
-        
-        /* Container principal */
+
+        /* ── Container principal ── */
         #main-container {
             display: none;
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            inset: 0;
         }
-        
-        /* Câmera */
-        #camera {
+
+        /* ── Área da câmera: 60% superior ── */
+        #camera-area {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 60%;
-            z-index: 1;
+            overflow: hidden;
+            background: #111;
         }
-        
-        video {
+
+        #video {
+            position: absolute;
+            top: 0;
+            left: 0;
             width: 100%;
             height: 100%;
             object-fit: cover;
         }
-        
-        canvas {
+
+        /* Canvases sobrepostos — sem interferir no vídeo */
+        #detection-canvas,
+        #hand-canvas {
             position: absolute;
             top: 0;
             left: 0;
@@ -83,369 +75,272 @@
             height: 100%;
             pointer-events: none;
         }
-        
-        /* AR Scene */
-        #ar-scene {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 60%;
-            z-index: 2;
-        }
-        
-        /* Mapa */
+
+        /* ── Mapa: 40% inferior ── */
         #map {
             position: absolute;
             bottom: 0;
             left: 0;
             width: 100%;
             height: 40%;
-            z-index: 3;
         }
-        
-        /* Status Panel */
+
+        /* ── HUD ── */
         #status-panel {
             position: absolute;
-            top: 10px;
-            right: 10px;
-            background: rgba(0, 0, 0, 0.7);
-            padding: 10px;
-            border-radius: 5px;
-            z-index: 4;
-            font-size: 0.8em;
+            top: 8px;
+            right: 8px;
+            background: rgba(0, 0, 0, 0.72);
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.75em;
+            line-height: 1.7;
+            z-index: 10;
+            pointer-events: none;
         }
-        
-        /* Setas */
-        #arrows {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 3em;
-            z-index: 5;
-        }
-        
-        /* Botão sair */
+
         #exit-btn {
             position: absolute;
-            top: 10px;
-            left: 10px;
-            padding: 10px;
+            top: 8px;
+            left: 8px;
+            padding: 8px 14px;
             background: #f44336;
             color: white;
             border: none;
-            border-radius: 5px;
+            border-radius: 6px;
             cursor: pointer;
-            z-index: 6;
+            font-size: 0.9em;
+            z-index: 10;
+            touch-action: manipulation;
         }
-        
-        /* Responsividade */
-        @media (max-width: 768px) {
-            #status-panel {
-                font-size: 0.7em;
-                top: 5px;
-                right: 5px;
-            }
-            #arrows {
-                font-size: 2em;
-            }
+
+        #arrows {
+            position: absolute;
+            top: calc(60% - 1.4em);
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 2.5em;
+            z-index: 10;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.9);
+            pointer-events: none;
         }
-        
+
         @media (max-width: 480px) {
-            #initial-screen h1 {
-                font-size: 2em;
-            }
-            #start-btn {
-                font-size: 1em;
-            }
+            #initial-screen h1 { font-size: 1.8em; }
+            #start-btn { font-size: 1em; }
+            #status-panel { font-size: 0.65em; }
+            #arrows { font-size: 2em; }
         }
     </style>
 </head>
 <body>
+
     <!-- Tela Inicial -->
     <div id="initial-screen">
-        <h1>Maps Tour AR - Aracaju</h1>
+        <h1>Maps Tour AR<br>Aracaju</h1>
         <button id="start-btn">Iniciar</button>
     </div>
-    
+
     <!-- Container Principal -->
     <div id="main-container">
-        <!-- Câmera -->
-        <div id="camera">
+
+        <!-- Câmera + overlays -->
+        <div id="camera-area">
             <video id="video" autoplay muted playsinline webkit-playsinline></video>
             <canvas id="detection-canvas"></canvas>
+            <canvas id="hand-canvas"></canvas>
         </div>
-        
-        <!-- AR Scene -->
-        <div id="ar-scene"></div>
-        
+
         <!-- Mapa -->
         <div id="map"></div>
-        
-        <!-- Status Panel -->
+
+        <!-- HUD -->
         <div id="status-panel">
-            <div>Latitude: <span id="lat">--</span></div>
-            <div>Longitude: <span id="lng">--</span></div>
+            <div>Lat: <span id="lat">--</span></div>
+            <div>Lng: <span id="lng">--</span></div>
             <div>Heading: <span id="heading">--</span>°</div>
-            <div>Distância ao POI: <span id="distance">--</span> m</div>
-            <div>Objetos Detectados: <span id="objects">0</span></div>
-            <div>Mão: <span id="hand-status">Não detectada</span></div>
+            <div>Dist. POI: <span id="distance">--</span> m</div>
+            <div>Objetos: <span id="objects">0</span></div>
+            <div>Mão: <span id="hand-status">--</span></div>
         </div>
-        
-        <!-- Setas -->
+
         <div id="arrows">↑</div>
-        
-        <!-- Botão Sair -->
         <button id="exit-btn">Sair</button>
+
     </div>
-    
-    <!-- Scripts -->
-    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
-    <script src="https://raw.githack.com/jeromeetienne/AR.js/master/aframe/build/aframe-ar.js"></script>
+
+    <!-- Scripts (sem A-Frame/AR.js — conflitavam com a câmera) -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.11.0/dist/tf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.2/dist/coco-ssd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/handpose@0.1.7/dist/handpose.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDHpEBTP49TY3aopjq0wvneYk-pGvoFzYY&libraries=geometry"></script>
-    
+
     <script>
-        // Variáveis globais
-        let video = document.getElementById('video');
-        let detectionCanvas = document.getElementById('detection-canvas');
-        let ctx = detectionCanvas.getContext('2d');
-        let model;
-        let map;
-        let userMarker;
-        let poiMarkers = [];
-        let pois = [
-            { name: 'Praia de Atalaia', lat: -10.9472, lng: -37.0731 },
-            { name: 'Museu de Sergipe', lat: -10.9117, lng: -37.0714 },
-            { name: 'Centro Histórico', lat: -10.9160, lng: -37.0720 }
+        const video           = document.getElementById('video');
+        const detectionCanvas = document.getElementById('detection-canvas');
+        const handCanvas      = document.getElementById('hand-canvas');
+        const ctx             = detectionCanvas.getContext('2d');
+
+        let cocoModel, handModel, map, userMarker;
+        let threeRenderer, threeScene, threeOrthoCamera, handObject;
+
+        const pois = [
+            { name: 'Praia de Atalaia',  lat: -10.9472, lng: -37.0731 },
+            { name: 'Museu de Sergipe',  lat: -10.9117, lng: -37.0714 },
+            { name: 'Centro Histórico',  lat: -10.9160, lng: -37.0720 }
         ];
-        let userPosition = { lat: -10.9472, lng: -37.0731 }; // Simulado inicialmente
+        let userPosition = { lat: -10.9472, lng: -37.0731 };
         let heading = 0;
         let closestPoi = pois[0];
-        
-        // FASE 1: Câmera
+
+        // ── Câmera ────────────────────────────────────────────────
         async function initCamera() {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: {
                         facingMode: { ideal: 'environment' },
-                        width: { ideal: 1280 },
+                        width:  { ideal: 1280 },
                         height: { ideal: 720 }
                     }
                 });
                 video.srcObject = stream;
-                video.addEventListener('loadedmetadata', () => {
-                    detectionCanvas.width = video.videoWidth;
-                    detectionCanvas.height = video.videoHeight;
-                });
-                window.addEventListener('resize', () => {
-                    detectionCanvas.width = video.videoWidth;
-                    detectionCanvas.height = video.videoHeight;
-                });
-            } catch (error) {
-                console.error('Erro ao acessar câmera:', error);
-                alert('Não foi possível acessar a câmera. Verifique as permissões.');
+                video.addEventListener('loadedmetadata', syncCanvasSize);
+                window.addEventListener('resize', syncCanvasSize);
+            } catch (err) {
+                console.error('Camera error:', err);
+                alert('Câmera indisponível: ' + err.message);
             }
         }
-        
-        // FASE 4: Detecção de Objetos
+
+        function syncCanvasSize() {
+            const vw = video.videoWidth  || 640;
+            const vh = video.videoHeight || 480;
+            detectionCanvas.width  = vw;
+            detectionCanvas.height = vh;
+        }
+
+        // ── Detecção de objetos (COCO-SSD) ────────────────────────
         async function initDetection() {
             try {
-                model = await cocoSsd.load();
-                detectObjects();
+                cocoModel = await cocoSsd.load();
+                detectLoop();
             } catch (e) {
-                console.error('Falha ao carregar COCO-SSD:', e);
+                console.error('COCO-SSD load failed:', e);
             }
         }
-        
-        async function detectObjects() {
-            if (video.readyState === 4) {
-                const predictions = await model.detect(video);
+
+        async function detectLoop() {
+            if (video.readyState === 4 && cocoModel) {
+                const preds = await cocoModel.detect(video);
                 ctx.clearRect(0, 0, detectionCanvas.width, detectionCanvas.height);
-                predictions.forEach(prediction => {
-                    const [x, y, width, height] = prediction.bbox;
+                preds.forEach(p => {
+                    const [x, y, w, h] = p.bbox;
                     ctx.strokeStyle = '#00FF00';
-                    ctx.lineWidth = 2;
-                    ctx.strokeRect(x, y, width, height);
+                    ctx.lineWidth   = 2;
+                    ctx.strokeRect(x, y, w, h);
                     ctx.fillStyle = '#00FF00';
-                    ctx.fillText(`${prediction.class} (${Math.round(prediction.score * 100)}%)`, x, y - 5);
+                    ctx.font      = '14px Arial';
+                    ctx.fillText(`${p.class} ${Math.round(p.score * 100)}%`, x, y > 16 ? y - 4 : y + 16);
                 });
-                document.getElementById('objects').textContent = predictions.length;
+                document.getElementById('objects').textContent = preds.length;
             }
-            requestAnimationFrame(detectObjects);
+            requestAnimationFrame(detectLoop);
         }
-        
-        // FASE 3: GPS
+
+        // ── GPS ───────────────────────────────────────────────────
         function initGPS() {
-            if (navigator.geolocation) {
-                navigator.geolocation.watchPosition(updatePosition, handleError, {
-                    enableHighAccuracy: true,
-                    maximumAge: 30000,
-                    timeout: 27000
-                });
-            } else {
-                // GPS simulado
-                setInterval(() => {
-                    userPosition.lat += (Math.random() - 0.5) * 0.001;
-                    userPosition.lng += (Math.random() - 0.5) * 0.001;
+            if (!navigator.geolocation) { simulateGPS(); return; }
+            navigator.geolocation.watchPosition(
+                pos => {
+                    userPosition.lat = pos.coords.latitude;
+                    userPosition.lng = pos.coords.longitude;
+                    heading = pos.coords.heading || 0;
                     updateMap();
-                }, 5000);
-            }
+                },
+                () => simulateGPS(),
+                { enableHighAccuracy: true, timeout: 27000, maximumAge: 30000 }
+            );
         }
-        
-        function updatePosition(position) {
-            userPosition.lat = position.coords.latitude;
-            userPosition.lng = position.coords.longitude;
-            heading = position.coords.heading || 0;
-            updateMap();
+
+        function simulateGPS() {
+            setInterval(() => {
+                userPosition.lat += (Math.random() - 0.5) * 0.001;
+                userPosition.lng += (Math.random() - 0.5) * 0.001;
+                updateMap();
+            }, 5000);
         }
-        
-        function handleError(error) {
-            console.error('Erro GPS:', error);
-            // Fallback para simulado
-        }
-        
-        // Mapa
+
+        // ── Mapa ──────────────────────────────────────────────────
         function initMap() {
             map = new google.maps.Map(document.getElementById('map'), {
                 center: userPosition,
                 zoom: 15,
-                styles: [
-                    { featureType: 'poi', stylers: [{ visibility: 'off' }] }
-                ]
+                styles: [{ featureType: 'poi', stylers: [{ visibility: 'off' }] }]
             });
-            
             userMarker = new google.maps.Marker({
                 position: userPosition,
-                map: map,
+                map,
                 icon: {
                     path: google.maps.SymbolPath.CIRCLE,
                     scale: 8,
-                    fillColor: '#4285F4',
-                    fillOpacity: 1,
-                    strokeColor: '#fff',
-                    strokeWeight: 2
+                    fillColor: '#4285F4', fillOpacity: 1,
+                    strokeColor: '#fff',  strokeWeight: 2
                 }
             });
-            
-            pois.forEach(poi => {
-                const marker = new google.maps.Marker({
-                    position: poi,
-                    map: map,
-                    title: poi.name
-                });
-                poiMarkers.push(marker);
-            });
-            
+            pois.forEach(poi => new google.maps.Marker({ position: poi, map, title: poi.name }));
             updateMap();
         }
-        
+
         function updateMap() {
             if (!userMarker || !map) return;
             userMarker.setPosition(userPosition);
             map.setCenter(userPosition);
-            
-            // Calcular POI mais próximo
-            let minDistance = Infinity;
+
+            let minDist = Infinity;
             pois.forEach(poi => {
-                const distance = google.maps.geometry.spherical.computeDistanceBetween(
+                const d = google.maps.geometry.spherical.computeDistanceBetween(
                     new google.maps.LatLng(userPosition.lat, userPosition.lng),
                     new google.maps.LatLng(poi.lat, poi.lng)
                 );
-                if (distance < minDistance) {
-                    minDistance = distance;
-                    closestPoi = poi;
-                }
+                if (d < minDist) { minDist = d; closestPoi = poi; }
             });
-            
-            document.getElementById('lat').textContent = userPosition.lat.toFixed(6);
-            document.getElementById('lng').textContent = userPosition.lng.toFixed(6);
-            document.getElementById('heading').textContent = heading.toFixed(1);
-            document.getElementById('distance').textContent = minDistance.toFixed(1);
-            
-            // Atualizar setas
+
+            document.getElementById('lat').textContent      = userPosition.lat.toFixed(5);
+            document.getElementById('lng').textContent      = userPosition.lng.toFixed(5);
+            document.getElementById('heading').textContent  = Math.round(heading);
+            document.getElementById('distance').textContent = Math.round(minDist);
+
             const bearing = google.maps.geometry.spherical.computeHeading(
                 new google.maps.LatLng(userPosition.lat, userPosition.lng),
                 new google.maps.LatLng(closestPoi.lat, closestPoi.lng)
             );
-            const direction = Math.round((bearing - heading + 360) % 360 / 45);
-            const arrows = ['↑', '↗', '→', '↘', '↓', '↙', '←', '↖'];
-            document.getElementById('arrows').textContent = arrows[direction];
+            const dir = Math.round((bearing - heading + 360) % 360 / 45) % 8;
+            document.getElementById('arrows').textContent = ['↑','↗','→','↘','↓','↙','←','↖'][dir];
         }
-        
-        // FASE 2: AR
-        function initAR() {
-            const scene = document.createElement('a-scene');
-            scene.setAttribute('embedded', '');
-            scene.setAttribute('arjs', 'sourceType: webcam; debugUIEnabled: false;');
-            
-            pois.forEach((poi, index) => {
-                const entity = document.createElement('a-entity');
-                entity.setAttribute('gps-entity-place', `latitude: ${poi.lat}; longitude: ${poi.lng};`);
-                entity.setAttribute('geometry', 'primitive: sphere; radius: 5');
-                entity.setAttribute('material', 'color: cyan');
-                entity.setAttribute('animation', 'property: scale; to: 1.2 1.2 1.2; dur: 1000; easing: easeInOutQuad; loop: true; dir: alternate');
-                scene.appendChild(entity);
-                
-                // Trilha (simplificada como linha)
-                const line = document.createElement('a-entity');
-                line.setAttribute('line', `start: 0 0 0; end: 0 10 0; color: cyan`);
-                entity.appendChild(line);
-            });
-            
-            document.getElementById('ar-scene').appendChild(scene);
-        }
-        
-        // Inicialização
-        document.getElementById('start-btn').addEventListener('click', () => {
-            document.getElementById('initial-screen').style.display = 'none';
-            document.getElementById('main-container').style.display = 'block';
-            initCamera();
-            initDetection();
-            initGPS();
-            initMap();
-            initAR();
-            initThreeOverlay();
-            initHandTracking();
-        });
-        
-        document.getElementById('exit-btn').addEventListener('click', () => {
-            if (video.srcObject) {
-                video.srcObject.getTracks().forEach(t => t.stop());
-            }
-            location.reload();
-        });
 
-        // Three.js overlay para objeto na mão
-        let threeRenderer, threeScene, threeOrthoCamera, handObject;
-
+        // ── Three.js overlay (cubo na mão) ────────────────────────
         function initThreeOverlay() {
-            const container = document.getElementById('camera');
-            const w = container.offsetWidth || window.innerWidth;
-            const h = container.offsetHeight || Math.round(window.innerHeight * 0.6);
+            const area = document.getElementById('camera-area');
+            const w = area.clientWidth  || window.innerWidth;
+            const h = area.clientHeight || Math.round(window.innerHeight * 0.6);
 
-            const canvas = document.createElement('canvas');
-            canvas.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:3;';
-            container.appendChild(canvas);
-
-            threeRenderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+            threeRenderer = new THREE.WebGLRenderer({ canvas: handCanvas, alpha: true, antialias: true });
             threeRenderer.setSize(w, h);
+            threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
             threeScene = new THREE.Scene();
-            threeOrthoCamera = new THREE.OrthographicCamera(-w / 2, w / 2, h / 2, -h / 2, -500, 500);
+            threeOrthoCamera = new THREE.OrthographicCamera(-w/2, w/2, h/2, -h/2, -500, 500);
 
             threeScene.add(new THREE.AmbientLight(0xffffff, 0.6));
-            const dirLight = new THREE.DirectionalLight(0x00eeff, 1.2);
-            dirLight.position.set(1, 2, 3);
-            threeScene.add(dirLight);
+            const dl = new THREE.DirectionalLight(0x00eeff, 1.2);
+            dl.position.set(1, 2, 3);
+            threeScene.add(dl);
 
-            const geo = new THREE.BoxGeometry(55, 55, 55);
-            const mat = new THREE.MeshPhongMaterial({ color: 0x00ffcc, transparent: true, opacity: 0.88, shininess: 120 });
-            handObject = new THREE.Mesh(geo, mat);
+            handObject = new THREE.Mesh(
+                new THREE.BoxGeometry(55, 55, 55),
+                new THREE.MeshPhongMaterial({ color: 0x00ffcc, transparent: true, opacity: 0.88, shininess: 120 })
+            );
             handObject.visible = false;
             threeScene.add(handObject);
 
@@ -459,8 +354,8 @@
             })();
 
             window.addEventListener('resize', () => {
-                const nw = container.offsetWidth || window.innerWidth;
-                const nh = container.offsetHeight || Math.round(window.innerHeight * 0.6);
+                const nw = area.clientWidth  || window.innerWidth;
+                const nh = area.clientHeight || Math.round(window.innerHeight * 0.6);
                 threeRenderer.setSize(nw, nh);
                 threeOrthoCamera.left   = -nw / 2;
                 threeOrthoCamera.right  =  nw / 2;
@@ -470,9 +365,7 @@
             });
         }
 
-        // Rastreamento de mão
-        let handModel;
-
+        // ── Hand tracking ─────────────────────────────────────────
         async function initHandTracking() {
             try {
                 document.getElementById('hand-status').textContent = 'Carregando...';
@@ -480,32 +373,27 @@
                 document.getElementById('hand-status').textContent = 'Pronto';
                 trackHands();
             } catch (e) {
-                console.error('Falha ao carregar handpose:', e);
-                document.getElementById('hand-status').textContent = 'Erro';
+                console.error('Handpose load failed:', e);
+                document.getElementById('hand-status').textContent = 'Indisponível';
             }
         }
 
         async function trackHands() {
             if (video.readyState === 4 && handModel) {
-                const predictions = await handModel.estimateHands(video);
-
-                if (predictions.length > 0 && handObject) {
-                    const lm = predictions[0].landmarks;
-                    // Centro da palma: pulso (0) + base dos dedos (5, 9, 13, 17)
+                const preds = await handModel.estimateHands(video);
+                if (preds.length > 0 && handObject) {
+                    const lm = preds[0].landmarks;
                     const palmIdx = [0, 5, 9, 13, 17];
                     let px = 0, py = 0;
                     palmIdx.forEach(i => { px += lm[i][0]; py += lm[i][1]; });
                     px /= palmIdx.length;
                     py /= palmIdx.length;
 
-                    const container = document.getElementById('camera');
-                    const cw = container.offsetWidth;
-                    const ch = container.offsetHeight;
-                    const vw = video.videoWidth || 640;
-                    const vh = video.videoHeight || 480;
+                    const area = document.getElementById('camera-area');
+                    const cw = area.clientWidth,  ch = area.clientHeight;
+                    const vw = video.videoWidth || 640, vh = video.videoHeight || 480;
 
-                    // Mapeia coordenadas do vídeo para ortho (origem no centro)
-                    handObject.position.x = (px / vw) * cw - cw / 2;
+                    handObject.position.x =  (px / vw) * cw - cw / 2;
                     handObject.position.y = -((py / vh) * ch - ch / 2);
                     handObject.visible = true;
                     document.getElementById('hand-status').textContent = 'Detectada ✓';
@@ -516,6 +404,23 @@
             }
             requestAnimationFrame(trackHands);
         }
+
+        // ── Inicialização ─────────────────────────────────────────
+        document.getElementById('start-btn').addEventListener('click', () => {
+            document.getElementById('initial-screen').style.display = 'none';
+            document.getElementById('main-container').style.display = 'block';
+            initCamera();
+            initThreeOverlay();
+            initDetection();
+            initGPS();
+            initMap();
+            initHandTracking();
+        });
+
+        document.getElementById('exit-btn').addEventListener('click', () => {
+            if (video.srcObject) video.srcObject.getTracks().forEach(t => t.stop());
+            location.reload();
+        });
     </script>
 </body>
 </html>
