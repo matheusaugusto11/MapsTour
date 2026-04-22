@@ -230,6 +230,15 @@
             processHandFrame();
         }
 
+        // Produto vetorial 2D (pulso→MCP_indicador × pulso→MCP_mínimo).
+        // crossZ > 0 → palma virada para a câmera traseira com mão direita.
+        // Se o cubo aparecer ao inverso, troque ">" por "<".
+        function isPalmFacingCamera(lm) {
+            const crossZ = (lm[5].x - lm[0].x) * (lm[17].y - lm[0].y)
+                         - (lm[5].y - lm[0].y) * (lm[17].x - lm[0].x);
+            return crossZ > 0;
+        }
+
         // Callback do MediaPipe — chamado a cada frame processado
         function onHandResults(results) {
             lmCtx.clearRect(0, 0, landmarkCanvas.width, landmarkCanvas.height);
@@ -250,6 +259,8 @@
             // Desenha esqueleto da mão no canvas 2D
             drawHandSkeleton(lm, vw, vh);
 
+            const palmFacing = isPalmFacingCamera(lm);
+
             // Centro da palma = média entre pulso(0) e bases dos dedos(5,9,13,17)
             const palmIdx = [0, 5, 9, 13, 17];
             let px = 0, py = 0;
@@ -257,15 +268,14 @@
             px /= palmIdx.length;
             py /= palmIdx.length;
 
-            // MediaPipe devolve coordenadas normalizadas (0-1)
-            // Mapeia para espaço ortográfico do Three.js (origem no centro)
             if (handObject) {
                 handObject.position.x =  px * cw - cw / 2;
                 handObject.position.y = -(py * ch - ch / 2);
-                handObject.visible = true;
+                handObject.visible = palmFacing;
             }
 
-            document.getElementById('hand-status').textContent = 'Detectada ✓';
+            document.getElementById('hand-status').textContent =
+                palmFacing ? 'Palma ✓' : 'Dorso';
         }
 
         // Desenha os 21 pontos e conexões da mão
