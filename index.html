@@ -6,13 +6,17 @@
     <title>Maps Tour AR - Aracaju, Sergipe</title>
     <style>
         /* Estilos gerais */
-        body {
+        html, body {
             margin: 0;
             padding: 0;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
             font-family: Arial, sans-serif;
             background: #000;
             color: #fff;
-            overflow: hidden;
         }
         
         /* Tela inicial */
@@ -48,7 +52,9 @@
         /* Container principal */
         #main-container {
             display: none;
-            position: relative;
+            position: fixed;
+            top: 0;
+            left: 0;
             width: 100%;
             height: 100%;
         }
@@ -167,7 +173,7 @@
     <div id="main-container">
         <!-- Câmera -->
         <div id="camera">
-            <video id="video" autoplay muted></video>
+            <video id="video" autoplay muted playsinline webkit-playsinline></video>
             <canvas id="detection-canvas"></canvas>
         </div>
         
@@ -201,7 +207,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.2/dist/coco-ssd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/handpose@0.1.7/dist/handpose.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDHpEBTP49TY3aopjq0wvneYk-pGvoFzYY"></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDHpEBTP49TY3aopjq0wvneYk-pGvoFzYY&libraries=geometry"></script>
     
     <script>
         // Variáveis globais
@@ -224,19 +230,36 @@
         // FASE 1: Câmera
         async function initCamera() {
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: { ideal: 'environment' },
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
+                });
                 video.srcObject = stream;
-                detectionCanvas.width = video.offsetWidth;
-                detectionCanvas.height = video.offsetHeight;
+                video.addEventListener('loadedmetadata', () => {
+                    detectionCanvas.width = video.videoWidth;
+                    detectionCanvas.height = video.videoHeight;
+                });
+                window.addEventListener('resize', () => {
+                    detectionCanvas.width = video.videoWidth;
+                    detectionCanvas.height = video.videoHeight;
+                });
             } catch (error) {
                 console.error('Erro ao acessar câmera:', error);
+                alert('Não foi possível acessar a câmera. Verifique as permissões.');
             }
         }
         
         // FASE 4: Detecção de Objetos
         async function initDetection() {
-            model = await cocoSsd.load();
-            detectObjects();
+            try {
+                model = await cocoSsd.load();
+                detectObjects();
+            } catch (e) {
+                console.error('Falha ao carregar COCO-SSD:', e);
+            }
         }
         
         async function detectObjects() {
@@ -322,6 +345,7 @@
         }
         
         function updateMap() {
+            if (!userMarker || !map) return;
             userMarker.setPosition(userPosition);
             map.setCenter(userPosition);
             
@@ -390,6 +414,9 @@
         });
         
         document.getElementById('exit-btn').addEventListener('click', () => {
+            if (video.srcObject) {
+                video.srcObject.getTracks().forEach(t => t.stop());
+            }
             location.reload();
         });
 
@@ -430,16 +457,32 @@
                 }
                 threeRenderer.render(threeScene, threeOrthoCamera);
             })();
+
+            window.addEventListener('resize', () => {
+                const nw = container.offsetWidth || window.innerWidth;
+                const nh = container.offsetHeight || Math.round(window.innerHeight * 0.6);
+                threeRenderer.setSize(nw, nh);
+                threeOrthoCamera.left   = -nw / 2;
+                threeOrthoCamera.right  =  nw / 2;
+                threeOrthoCamera.top    =  nh / 2;
+                threeOrthoCamera.bottom = -nh / 2;
+                threeOrthoCamera.updateProjectionMatrix();
+            });
         }
 
         // Rastreamento de mão
         let handModel;
 
         async function initHandTracking() {
-            document.getElementById('hand-status').textContent = 'Carregando...';
-            handModel = await handpose.load();
-            document.getElementById('hand-status').textContent = 'Pronto';
-            trackHands();
+            try {
+                document.getElementById('hand-status').textContent = 'Carregando...';
+                handModel = await handpose.load();
+                document.getElementById('hand-status').textContent = 'Pronto';
+                trackHands();
+            } catch (e) {
+                console.error('Falha ao carregar handpose:', e);
+                document.getElementById('hand-status').textContent = 'Erro';
+            }
         }
 
         async function trackHands() {
@@ -468,7 +511,7 @@
                     document.getElementById('hand-status').textContent = 'Detectada ✓';
                 } else {
                     if (handObject) handObject.visible = false;
-                    document.getElementById('hand-status').textContent = 'Nao detectada';
+                    document.getElementById('hand-status').textContent = 'Não detectada';
                 }
             }
             requestAnimationFrame(trackHands);
