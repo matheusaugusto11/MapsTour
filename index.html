@@ -15,7 +15,6 @@
             color: #fff;
         }
 
-        /* ── Tela inicial ── */
         #initial-screen {
             position: fixed;
             inset: 0;
@@ -38,58 +37,47 @@
             touch-action: manipulation;
         }
 
-        /* ── Container principal ── */
         #main-container {
             display: none;
             position: fixed;
             inset: 0;
         }
 
-        /* ── Área da câmera: 60% superior ── */
+        /* 60% superior: câmera */
         #camera-area {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 60%;
+            top: 0; left: 0;
+            width: 100%; height: 60%;
             overflow: hidden;
             background: #111;
         }
 
         #video {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
             object-fit: cover;
         }
 
-        /* Canvases sobrepostos — sem interferir no vídeo */
-        #detection-canvas,
+        /* canvas de landmarks e Three.js — em cima do vídeo */
+        #landmark-canvas,
         #hand-canvas {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
             pointer-events: none;
         }
 
-        /* ── Mapa: 40% inferior ── */
+        /* 40% inferior: mapa */
         #map {
             position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            height: 40%;
+            bottom: 0; left: 0;
+            width: 100%; height: 40%;
         }
 
-        /* ── HUD ── */
         #status-panel {
             position: absolute;
-            top: 8px;
-            right: 8px;
+            top: 8px; right: 8px;
             background: rgba(0, 0, 0, 0.72);
             padding: 8px 12px;
             border-radius: 8px;
@@ -101,8 +89,7 @@
 
         #exit-btn {
             position: absolute;
-            top: 8px;
-            left: 8px;
+            top: 8px; left: 8px;
             padding: 8px 14px;
             background: #f44336;
             color: white;
@@ -135,58 +122,53 @@
 </head>
 <body>
 
-    <!-- Tela Inicial -->
     <div id="initial-screen">
         <h1>Maps Tour AR<br>Aracaju</h1>
         <button id="start-btn">Iniciar</button>
     </div>
 
-    <!-- Container Principal -->
     <div id="main-container">
-
-        <!-- Câmera + overlays -->
         <div id="camera-area">
             <video id="video" autoplay muted playsinline webkit-playsinline></video>
-            <canvas id="detection-canvas"></canvas>
+            <!-- landmarks da mão desenhados em 2D -->
+            <canvas id="landmark-canvas"></canvas>
+            <!-- cubo Three.js -->
             <canvas id="hand-canvas"></canvas>
         </div>
 
-        <!-- Mapa -->
         <div id="map"></div>
 
-        <!-- HUD -->
         <div id="status-panel">
             <div>Lat: <span id="lat">--</span></div>
             <div>Lng: <span id="lng">--</span></div>
             <div>Heading: <span id="heading">--</span>°</div>
             <div>Dist. POI: <span id="distance">--</span> m</div>
-            <div>Objetos: <span id="objects">0</span></div>
             <div>Mão: <span id="hand-status">--</span></div>
         </div>
 
         <div id="arrows">↑</div>
         <button id="exit-btn">Sair</button>
-
     </div>
 
-    <!-- Scripts (sem A-Frame/AR.js — conflitavam com a câmera) -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.11.0/dist/tf.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.2/dist/coco-ssd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/handpose@0.1.7/dist/handpose.min.js"></script>
+    <!-- MediaPipe Hands (detecta apenas mãos, sem detectar pessoa) -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    <!-- Three.js para o cubo 3D -->
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+    <!-- Google Maps -->
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDHpEBTP49TY3aopjq0wvneYk-pGvoFzYY&libraries=geometry"></script>
 
     <script>
-        const video           = document.getElementById('video');
-        const detectionCanvas = document.getElementById('detection-canvas');
-        const handCanvas      = document.getElementById('hand-canvas');
-        const ctx             = detectionCanvas.getContext('2d');
+        const video          = document.getElementById('video');
+        const landmarkCanvas = document.getElementById('landmark-canvas');
+        const lmCtx          = landmarkCanvas.getContext('2d');
+        const handCanvas     = document.getElementById('hand-canvas');
 
-        let cocoModel, handModel, map, userMarker;
+        let handsDetector;
         let threeRenderer, threeScene, threeOrthoCamera, handObject;
+        let map, userMarker;
 
         const pois = [
-            { name: 'Praia de Atalaia',  lat: -10.9472, lng: -37.0731 },
+            { name: 'Praia de Atalaia', lat: -10.9472, lng: -37.0731 },
             { name: 'Museu de Sergipe',  lat: -10.9117, lng: -37.0714 },
             { name: 'Centro Histórico',  lat: -10.9160, lng: -37.0720 }
         ];
@@ -208,7 +190,6 @@
                 video.addEventListener('loadedmetadata', syncCanvasSize);
                 window.addEventListener('resize', syncCanvasSize);
             } catch (err) {
-                console.error('Camera error:', err);
                 alert('Câmera indisponível: ' + err.message);
             }
         }
@@ -216,36 +197,161 @@
         function syncCanvasSize() {
             const vw = video.videoWidth  || 640;
             const vh = video.videoHeight || 480;
-            detectionCanvas.width  = vw;
-            detectionCanvas.height = vh;
+            landmarkCanvas.width  = vw;
+            landmarkCanvas.height = vh;
         }
 
-        // ── Detecção de objetos (COCO-SSD) ────────────────────────
-        async function initDetection() {
-            try {
-                cocoModel = await cocoSsd.load();
-                detectLoop();
-            } catch (e) {
-                console.error('COCO-SSD load failed:', e);
-            }
+        // ── MediaPipe Hands ───────────────────────────────────────
+        // Detecta somente mãos (21 pontos) — não identifica pessoa
+        async function initHandTracking() {
+            document.getElementById('hand-status').textContent = 'Carregando...';
+
+            handsDetector = new Hands({
+                locateFile: file =>
+                    `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+            });
+
+            handsDetector.setOptions({
+                maxNumHands: 1,
+                modelComplexity: 1,
+                minDetectionConfidence: 0.75,
+                minTrackingConfidence:  0.6
+            });
+
+            handsDetector.onResults(onHandResults);
+
+            // aguarda o vídeo estar pronto antes de começar
+            await new Promise(res => {
+                if (video.readyState >= 1) { res(); return; }
+                video.addEventListener('loadedmetadata', res, { once: true });
+            });
+
+            document.getElementById('hand-status').textContent = 'Pronto';
+            processHandFrame();
         }
 
-        async function detectLoop() {
-            if (video.readyState === 4 && cocoModel) {
-                const preds = await cocoModel.detect(video);
-                ctx.clearRect(0, 0, detectionCanvas.width, detectionCanvas.height);
-                preds.forEach(p => {
-                    const [x, y, w, h] = p.bbox;
-                    ctx.strokeStyle = '#00FF00';
-                    ctx.lineWidth   = 2;
-                    ctx.strokeRect(x, y, w, h);
-                    ctx.fillStyle = '#00FF00';
-                    ctx.font      = '14px Arial';
-                    ctx.fillText(`${p.class} ${Math.round(p.score * 100)}%`, x, y > 16 ? y - 4 : y + 16);
-                });
-                document.getElementById('objects').textContent = preds.length;
+        // Callback do MediaPipe — chamado a cada frame processado
+        function onHandResults(results) {
+            lmCtx.clearRect(0, 0, landmarkCanvas.width, landmarkCanvas.height);
+
+            if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) {
+                if (handObject) handObject.visible = false;
+                document.getElementById('hand-status').textContent = 'Não detectada';
+                return;
             }
-            requestAnimationFrame(detectLoop);
+
+            const lm  = results.multiHandLandmarks[0];
+            const vw  = landmarkCanvas.width;
+            const vh  = landmarkCanvas.height;
+            const area = document.getElementById('camera-area');
+            const cw  = area.clientWidth;
+            const ch  = area.clientHeight;
+
+            // Desenha esqueleto da mão no canvas 2D
+            drawHandSkeleton(lm, vw, vh);
+
+            // Centro da palma = média entre pulso(0) e bases dos dedos(5,9,13,17)
+            const palmIdx = [0, 5, 9, 13, 17];
+            let px = 0, py = 0;
+            palmIdx.forEach(i => { px += lm[i].x; py += lm[i].y; });
+            px /= palmIdx.length;
+            py /= palmIdx.length;
+
+            // MediaPipe devolve coordenadas normalizadas (0-1)
+            // Mapeia para espaço ortográfico do Three.js (origem no centro)
+            if (handObject) {
+                handObject.position.x =  px * cw - cw / 2;
+                handObject.position.y = -(py * ch - ch / 2);
+                handObject.visible = true;
+            }
+
+            document.getElementById('hand-status').textContent = 'Detectada ✓';
+        }
+
+        // Desenha os 21 pontos e conexões da mão
+        const HAND_CONNECTIONS = [
+            [0,1],[1,2],[2,3],[3,4],
+            [0,5],[5,6],[6,7],[7,8],
+            [0,9],[9,10],[10,11],[11,12],
+            [0,13],[13,14],[14,15],[15,16],
+            [0,17],[17,18],[18,19],[19,20],
+            [5,9],[9,13],[13,17]
+        ];
+
+        function drawHandSkeleton(lm, vw, vh) {
+            lmCtx.strokeStyle = 'rgba(0, 255, 200, 0.85)';
+            lmCtx.lineWidth   = 2;
+            HAND_CONNECTIONS.forEach(([a, b]) => {
+                lmCtx.beginPath();
+                lmCtx.moveTo(lm[a].x * vw, lm[a].y * vh);
+                lmCtx.lineTo(lm[b].x * vw, lm[b].y * vh);
+                lmCtx.stroke();
+            });
+            lm.forEach(pt => {
+                lmCtx.beginPath();
+                lmCtx.arc(pt.x * vw, pt.y * vh, 4, 0, Math.PI * 2);
+                lmCtx.fillStyle = '#00ffcc';
+                lmCtx.fill();
+            });
+        }
+
+        // Loop de envio de frames para o MediaPipe
+        async function processHandFrame() {
+            if (video.readyState >= 2) {
+                await handsDetector.send({ image: video });
+            }
+            requestAnimationFrame(processHandFrame);
+        }
+
+        // ── Three.js — cubo sobre a mão ───────────────────────────
+        function initThreeOverlay() {
+            const area = document.getElementById('camera-area');
+            const w = area.clientWidth  || window.innerWidth;
+            const h = area.clientHeight || Math.round(window.innerHeight * 0.6);
+
+            threeRenderer = new THREE.WebGLRenderer({ canvas: handCanvas, alpha: true, antialias: true });
+            threeRenderer.setSize(w, h);
+            threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+            threeScene = new THREE.Scene();
+            threeOrthoCamera = new THREE.OrthographicCamera(-w/2, w/2, h/2, -h/2, -500, 500);
+
+            threeScene.add(new THREE.AmbientLight(0xffffff, 0.6));
+            const dl = new THREE.DirectionalLight(0x00eeff, 1.2);
+            dl.position.set(1, 2, 3);
+            threeScene.add(dl);
+
+            handObject = new THREE.Mesh(
+                new THREE.BoxGeometry(55, 55, 55),
+                new THREE.MeshPhongMaterial({
+                    color: 0x00ffcc,
+                    transparent: true,
+                    opacity: 0.88,
+                    shininess: 120
+                })
+            );
+            handObject.visible = false;
+            threeScene.add(handObject);
+
+            (function animate() {
+                requestAnimationFrame(animate);
+                if (handObject.visible) {
+                    handObject.rotation.x += 0.02;
+                    handObject.rotation.y += 0.03;
+                }
+                threeRenderer.render(threeScene, threeOrthoCamera);
+            })();
+
+            window.addEventListener('resize', () => {
+                const nw = area.clientWidth  || window.innerWidth;
+                const nh = area.clientHeight || Math.round(window.innerHeight * 0.6);
+                threeRenderer.setSize(nw, nh);
+                threeOrthoCamera.left   = -nw / 2;
+                threeOrthoCamera.right  =  nw / 2;
+                threeOrthoCamera.top    =  nh / 2;
+                threeOrthoCamera.bottom = -nh / 2;
+                threeOrthoCamera.updateProjectionMatrix();
+            });
         }
 
         // ── GPS ───────────────────────────────────────────────────
@@ -271,7 +377,7 @@
             }, 5000);
         }
 
-        // ── Mapa ──────────────────────────────────────────────────
+        // ── Google Maps ───────────────────────────────────────────
         function initMap() {
             map = new google.maps.Map(document.getElementById('map'), {
                 center: userPosition,
@@ -316,93 +422,8 @@
                 new google.maps.LatLng(closestPoi.lat, closestPoi.lng)
             );
             const dir = Math.round((bearing - heading + 360) % 360 / 45) % 8;
-            document.getElementById('arrows').textContent = ['↑','↗','→','↘','↓','↙','←','↖'][dir];
-        }
-
-        // ── Three.js overlay (cubo na mão) ────────────────────────
-        function initThreeOverlay() {
-            const area = document.getElementById('camera-area');
-            const w = area.clientWidth  || window.innerWidth;
-            const h = area.clientHeight || Math.round(window.innerHeight * 0.6);
-
-            threeRenderer = new THREE.WebGLRenderer({ canvas: handCanvas, alpha: true, antialias: true });
-            threeRenderer.setSize(w, h);
-            threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-
-            threeScene = new THREE.Scene();
-            threeOrthoCamera = new THREE.OrthographicCamera(-w/2, w/2, h/2, -h/2, -500, 500);
-
-            threeScene.add(new THREE.AmbientLight(0xffffff, 0.6));
-            const dl = new THREE.DirectionalLight(0x00eeff, 1.2);
-            dl.position.set(1, 2, 3);
-            threeScene.add(dl);
-
-            handObject = new THREE.Mesh(
-                new THREE.BoxGeometry(55, 55, 55),
-                new THREE.MeshPhongMaterial({ color: 0x00ffcc, transparent: true, opacity: 0.88, shininess: 120 })
-            );
-            handObject.visible = false;
-            threeScene.add(handObject);
-
-            (function animate() {
-                requestAnimationFrame(animate);
-                if (handObject.visible) {
-                    handObject.rotation.x += 0.02;
-                    handObject.rotation.y += 0.03;
-                }
-                threeRenderer.render(threeScene, threeOrthoCamera);
-            })();
-
-            window.addEventListener('resize', () => {
-                const nw = area.clientWidth  || window.innerWidth;
-                const nh = area.clientHeight || Math.round(window.innerHeight * 0.6);
-                threeRenderer.setSize(nw, nh);
-                threeOrthoCamera.left   = -nw / 2;
-                threeOrthoCamera.right  =  nw / 2;
-                threeOrthoCamera.top    =  nh / 2;
-                threeOrthoCamera.bottom = -nh / 2;
-                threeOrthoCamera.updateProjectionMatrix();
-            });
-        }
-
-        // ── Hand tracking ─────────────────────────────────────────
-        async function initHandTracking() {
-            try {
-                document.getElementById('hand-status').textContent = 'Carregando...';
-                handModel = await handpose.load();
-                document.getElementById('hand-status').textContent = 'Pronto';
-                trackHands();
-            } catch (e) {
-                console.error('Handpose load failed:', e);
-                document.getElementById('hand-status').textContent = 'Indisponível';
-            }
-        }
-
-        async function trackHands() {
-            if (video.readyState === 4 && handModel) {
-                const preds = await handModel.estimateHands(video);
-                if (preds.length > 0 && handObject) {
-                    const lm = preds[0].landmarks;
-                    const palmIdx = [0, 5, 9, 13, 17];
-                    let px = 0, py = 0;
-                    palmIdx.forEach(i => { px += lm[i][0]; py += lm[i][1]; });
-                    px /= palmIdx.length;
-                    py /= palmIdx.length;
-
-                    const area = document.getElementById('camera-area');
-                    const cw = area.clientWidth,  ch = area.clientHeight;
-                    const vw = video.videoWidth || 640, vh = video.videoHeight || 480;
-
-                    handObject.position.x =  (px / vw) * cw - cw / 2;
-                    handObject.position.y = -((py / vh) * ch - ch / 2);
-                    handObject.visible = true;
-                    document.getElementById('hand-status').textContent = 'Detectada ✓';
-                } else {
-                    if (handObject) handObject.visible = false;
-                    document.getElementById('hand-status').textContent = 'Não detectada';
-                }
-            }
-            requestAnimationFrame(trackHands);
+            document.getElementById('arrows').textContent =
+                ['↑','↗','→','↘','↓','↙','←','↖'][dir];
         }
 
         // ── Inicialização ─────────────────────────────────────────
@@ -411,7 +432,6 @@
             document.getElementById('main-container').style.display = 'block';
             initCamera();
             initThreeOverlay();
-            initDetection();
             initGPS();
             initMap();
             initHandTracking();
