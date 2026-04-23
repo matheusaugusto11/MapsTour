@@ -495,23 +495,44 @@
 
         // ── Bussola do dispositivo ────────────────────────────────
         function initOrientation() {
+            let absoluteSupported = false; // true assim que deviceorientationabsolute responder
+
             const handler = (e) => {
                 let h = null;
+                let reliable = false;
+
                 if (e.webkitCompassHeading != null) {
-                    h = e.webkitCompassHeading;                    // iOS
+                    // iOS — sempre norte verdadeiro
+                    h = e.webkitCompassHeading;
+                    reliable = true;
                 } else if (e.alpha != null && e.absolute) {
-                    h = (360 - e.alpha + 360) % 360;               // Android absoluto
-                } else if (e.alpha != null) {
-                    h = (360 - e.alpha + 360) % 360;               // fallback sem garantia
+                    // Android com sensor absoluto (mais confiavel)
+                    h = (360 - e.alpha + 360) % 360;
+                    reliable = true;
+                    absoluteSupported = true;
+                } else if (e.alpha != null && !absoluteSupported) {
+                    // Fallback relativo: aceita apenas se o sensor absoluto nunca respondeu.
+                    // Alpha relativo nao aponta para o norte — usado so como ultimo recurso.
+                    h = (360 - e.alpha + 360) % 360;
                 }
-                if (h !== null) {
-                    heading = suavizarAngulo(heading, h, 0.2);     // low-pass fator 0.2
+
+                if (h === null) return;
+
+                heading = suavizarAngulo(heading, h, 0.2);
+
+                if (reliable) {
+                    // So marca compassActive para leituras confiaveis; assim o GPS heading
+                    // continua sendo usado como fallback em dispositivos sem sensor absoluto.
                     compassActive = true;
-                    document.getElementById('st-bus').textContent = 'Bussola OK';
-                    document.getElementById('st-bus').classList.add('ok');
-                    updateMap();
                 }
+
+                document.getElementById('st-bus').textContent = reliable ? 'Bussola OK' : 'Bussola~';
+                document.getElementById('st-bus').classList.toggle('ok', reliable);
+
+                // Atualiza apenas exibicao de heading e seta — evita recalcular POIs/rota a 60fps
+                atualizarDirecao();
             };
+
             if (typeof DeviceOrientationEvent !== 'undefined' &&
                 typeof DeviceOrientationEvent.requestPermission === 'function') {
                 DeviceOrientationEvent.requestPermission()
@@ -521,6 +542,17 @@
                 window.addEventListener('deviceorientationabsolute', handler, true);
                 window.addEventListener('deviceorientation', handler);
             }
+        }
+
+        // Atualiza heading display, seta e Street View sem recalcular POIs/rota
+        function atualizarDirecao() {
+            document.getElementById('heading').textContent = Math.round(getHeading());
+            if (bearing !== 0) {
+                const dir = Math.round((bearing - getHeading() + 360) % 360 / 45) % 8;
+                document.getElementById('arrows').textContent =
+                    ['↑','↗','→','↘','↓','↙','←','↖'][dir];
+            }
+            updateStreetView();
         }
 
         // ── GPS ───────────────────────────────────────────────────
