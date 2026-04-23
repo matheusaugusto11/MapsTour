@@ -168,6 +168,24 @@
             text-align: right;
         }
 
+        /* Status GPS / Bussola */
+        #status-bar {
+            position: absolute;
+            top: 8px; left: 55px;
+            z-index: 10;
+            display: flex; gap: 5px;
+            pointer-events: none;
+        }
+        .status-pill {
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 10px;
+            background: rgba(0,0,0,0.58);
+            backdrop-filter: blur(4px);
+            color: #999;
+        }
+        .status-pill.ok { color: #4BD4D2; }
+
         @media (max-width: 480px) {
             #initial-screen h1 { font-size: 1.8em; }
             #start-btn { font-size: 1em; }
@@ -217,6 +235,10 @@
 
         <div id="arrows">↑</div>
         <button id="exit-btn">Sair</button>
+        <div id="status-bar">
+            <span class="status-pill" id="st-gps">GPS...</span>
+            <span class="status-pill" id="st-bus">Bussola...</span>
+        </div>
     </div>
 
     <!-- MediaPipe Hands (detecta apenas mãos, sem detectar pessoa) -->
@@ -237,6 +259,8 @@
         let map, userMarker;
         let navCanvas, navCtx, navAnimPhase = 0;
         let svPanorama = null, svService = null, svOpen = false;
+        let directionsService, directionsRenderer;
+        let lastRoutePos = null, routeTimer = null;
 
         const pois = [
             { name: 'Praia de Atalaia', lat: -10.9472, lng: -37.0731 },
@@ -252,6 +276,22 @@
 
         // heading efetivo = compass + correcao de calibracao
         function getHeading() { return (heading + headingOffset + 360) % 360; }
+
+        // Filtro low-pass para angulos: evita saltos 359->1
+        function suavizarAngulo(atual, novo, fator) {
+            const d = ((novo - atual + 540) % 360) - 180;
+            return (atual + d * fator + 360) % 360;
+        }
+
+        // Haversine sem depender do Maps SDK (usado antes do mapa carregar)
+        function calcDistanciaSimples(a, b) {
+            const R = 6371000, D2R = Math.PI / 180;
+            const dLat = (b.lat - a.lat) * D2R;
+            const dLon = (b.lng - a.lng) * D2R;
+            const aa = Math.sin(dLat / 2) ** 2
+                     + Math.cos(a.lat * D2R) * Math.cos(b.lat * D2R) * Math.sin(dLon / 2) ** 2;
+            return R * 2 * Math.atan2(Math.sqrt(aa), Math.sqrt(1 - aa));
+        }
 
         // ── Câmera ────────────────────────────────────────────────
         async function initCamera() {
@@ -453,16 +493,24 @@
             });
         }
 
-        // ── Bussola do dispositivo (mais precisa que o GPS heading) ──
+        // ── Bussola do dispositivo ────────────────────────────────
         function initOrientation() {
             const handler = (e) => {
                 let h = null;
                 if (e.webkitCompassHeading != null) {
-                    h = e.webkitCompassHeading;           // iOS, norte real
+                    h = e.webkitCompassHeading;                    // iOS
                 } else if (e.alpha != null && e.absolute) {
-                    h = (360 - e.alpha) % 360;            // Android absoluto
+                    h = (360 - e.alpha + 360) % 360;               // Android absoluto
+                } else if (e.alpha != null) {
+                    h = (360 - e.alpha + 360) % 360;               // fallback sem garantia
                 }
-                if (h !== null) { heading = h; compassActive = true; updateMap(); }
+                if (h !== null) {
+                    heading = suavizarAngulo(heading, h, 0.2);     // low-pass fator 0.2
+                    compassActive = true;
+                    document.getElementById('st-bus').textContent = 'Bussola OK';
+                    document.getElementById('st-bus').classList.add('ok');
+                    updateMap();
+                }
             };
             if (typeof DeviceOrientationEvent !== 'undefined' &&
                 typeof DeviceOrientationEvent.requestPermission === 'function') {
@@ -482,11 +530,33 @@
                 pos => {
                     userPosition.lat = pos.coords.latitude;
                     userPosition.lng = pos.coords.longitude;
-                    if (!compassActive) heading = pos.coords.heading || 0;
+
+                    // Fusao GPS+bussola: em movimento o GPS heading e mais preciso
+                    const speed   = pos.coords.speed;
+                    const gpsHead = pos.coords.heading;
+                    if (gpsHead != null && !isNaN(gpsHead) && speed != null && speed > 0.4) {
+                        heading = suavizarAngulo(heading, gpsHead, 0.4);
+                    } else if (!compassActive && gpsHead != null && !isNaN(gpsHead)) {
+                        heading = suavizarAngulo(heading, gpsHead, 0.2);
+                    }
+
+                    document.getElementById('st-gps').textContent = 'GPS OK';
+                    document.getElementById('st-gps').classList.add('ok');
                     updateMap();
+
+                    // Recalcula rota apenas ao mover >10 m (debounce 1.2 s)
+                    const moveu = !lastRoutePos
+                        || calcDistanciaSimples(userPosition, lastRoutePos) > 10;
+                    if (moveu) {
+                        clearTimeout(routeTimer);
+                        routeTimer = setTimeout(() => {
+                            lastRoutePos = { ...userPosition };
+                            if (closestPoi) calcularRota(userPosition, closestPoi);
+                        }, 1200);
+                    }
                 },
                 () => simulateGPS(),
-                { enableHighAccuracy: true, timeout: 27000, maximumAge: 30000 }
+                { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
             );
         }
 
@@ -502,9 +572,17 @@
         function initMap() {
             map = new google.maps.Map(document.getElementById('map'), {
                 center: userPosition,
-                zoom: 15,
+                zoom: 18,
                 styles: [{ featureType: 'poi', stylers: [{ visibility: 'off' }] }]
             });
+
+            directionsService  = new google.maps.DirectionsService();
+            directionsRenderer = new google.maps.DirectionsRenderer({
+                map,
+                suppressMarkers: true,
+                polylineOptions: { strokeColor: '#4BD4D2', strokeWeight: 5 }
+            });
+
             userMarker = new google.maps.Marker({
                 position: userPosition,
                 map,
@@ -517,6 +595,22 @@
             });
             pois.forEach(poi => new google.maps.Marker({ position: poi, map, title: poi.name }));
             updateMap();
+        }
+
+        function calcularRota(inicio, destino) {
+            if (!directionsService || !directionsRenderer) return;
+            directionsService.route({
+                origin:      { lat: inicio.lat,  lng: inicio.lng },
+                destination: { lat: destino.lat, lng: destino.lng },
+                travelMode:  google.maps.TravelMode.WALKING
+            }, (response, status) => {
+                if (status !== 'OK') return;
+                directionsRenderer.setDirections(response);
+                const leg = response.routes[0].legs[0];
+                // Mostra distancia real da rota em vez de linha reta
+                document.getElementById('distance').textContent =
+                    leg.distance.text + ' (~' + leg.duration.text + ')';
+            });
         }
 
         function updateMap() {
@@ -533,10 +627,13 @@
                 if (d < minDist) { minDist = d; closestPoi = poi; }
             });
 
-            document.getElementById('lat').textContent      = userPosition.lat.toFixed(5);
-            document.getElementById('lng').textContent      = userPosition.lng.toFixed(5);
-            document.getElementById('heading').textContent  = Math.round(getHeading());
-            document.getElementById('distance').textContent = Math.round(minDist);
+            document.getElementById('lat').textContent     = userPosition.lat.toFixed(5);
+            document.getElementById('lng').textContent     = userPosition.lng.toFixed(5);
+            document.getElementById('heading').textContent = Math.round(getHeading());
+            // Distancia linha reta enquanto a rota de caminhada nao chegar
+            if (!lastRoutePos) {
+                document.getElementById('distance').textContent = Math.round(minDist) + ' m';
+            }
 
             bearing = google.maps.geometry.spherical.computeHeading(
                 new google.maps.LatLng(userPosition.lat, userPosition.lng),
