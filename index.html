@@ -113,11 +113,67 @@
             pointer-events: none;
         }
 
+        /* Street View panel */
+        #sv-panel {
+            position: absolute;
+            bottom: 8px; right: 8px;
+            z-index: 11;
+            border-radius: 10px;
+            overflow: hidden;
+            background: rgba(0,0,0,0.82);
+            border: 1px solid rgba(255,255,255,0.15);
+        }
+        #sv-toggle {
+            width: 100%;
+            padding: 7px 12px;
+            background: rgba(25,55,130,0.95);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 0.78em;
+            text-align: left;
+            touch-action: manipulation;
+        }
+        #sv-view {
+            width: 0; height: 0;
+            transition: width 0.22s, height 0.22s;
+        }
+        #sv-panel.open #sv-view {
+            width: 220px;
+            height: 132px;
+        }
+        #sv-controls {
+            display: none;
+            padding: 5px 6px;
+            gap: 5px;
+            align-items: center;
+        }
+        #sv-panel.open #sv-controls { display: flex; }
+        #sv-snap, #sv-calibrate {
+            flex: 1;
+            padding: 5px 0;
+            font-size: 0.7em;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            touch-action: manipulation;
+            color: white;
+        }
+        #sv-snap      { background: #1976D2; }
+        #sv-calibrate { background: #7B1FA2; }
+        #sv-status {
+            font-size: 0.65em;
+            color: #aaa;
+            min-width: 36px;
+            text-align: right;
+        }
+
         @media (max-width: 480px) {
             #initial-screen h1 { font-size: 1.8em; }
             #start-btn { font-size: 1em; }
             #status-panel { font-size: 0.65em; }
             #arrows { font-size: 2em; }
+            #sv-panel.open #sv-view { width: 170px; height: 102px; }
         }
     </style>
 </head>
@@ -137,6 +193,16 @@
             <canvas id="hand-canvas"></canvas>
             <!-- guia de navegação AR -->
             <canvas id="nav-canvas"></canvas>
+            <!-- painel Street View -->
+            <div id="sv-panel">
+                <button id="sv-toggle">🗺 Street View</button>
+                <div id="sv-view"></div>
+                <div id="sv-controls">
+                    <button id="sv-snap">📍 Snap GPS</button>
+                    <button id="sv-calibrate">🧭 Calibrar</button>
+                    <span id="sv-status"></span>
+                </div>
+            </div>
         </div>
 
         <div id="map"></div>
@@ -170,6 +236,7 @@
         let threeRenderer, threeScene, threeOrthoCamera, handObject;
         let map, userMarker;
         let navCanvas, navCtx, navAnimPhase = 0;
+        let svPanorama = null, svService = null, svOpen = false;
 
         const pois = [
             { name: 'Praia de Atalaia', lat: -10.9472, lng: -37.0731 },
@@ -178,9 +245,13 @@
         ];
         let userPosition = { lat: -10.9472, lng: -37.0731 };
         let heading = 0;
+        let headingOffset = 0; // correcao aplicada pela calibracao de Street View
         let bearing = 0;
         let closestPoi = pois[0];
         let compassActive = false;
+
+        // heading efetivo = compass + correcao de calibracao
+        function getHeading() { return (heading + headingOffset + 360) % 360; }
 
         // ── Câmera ────────────────────────────────────────────────
         async function initCamera() {
@@ -464,16 +535,117 @@
 
             document.getElementById('lat').textContent      = userPosition.lat.toFixed(5);
             document.getElementById('lng').textContent      = userPosition.lng.toFixed(5);
-            document.getElementById('heading').textContent  = Math.round(heading);
+            document.getElementById('heading').textContent  = Math.round(getHeading());
             document.getElementById('distance').textContent = Math.round(minDist);
 
             bearing = google.maps.geometry.spherical.computeHeading(
                 new google.maps.LatLng(userPosition.lat, userPosition.lng),
                 new google.maps.LatLng(closestPoi.lat, closestPoi.lng)
             );
-            const dir = Math.round((bearing - heading + 360) % 360 / 45) % 8;
+            const dir = Math.round((bearing - getHeading() + 360) % 360 / 45) % 8;
             document.getElementById('arrows').textContent =
                 ['↑','↗','→','↘','↓','↙','←','↖'][dir];
+
+            updateStreetView();
+        }
+
+        // ── Street View ───────────────────────────────────────────
+        function initStreetView() {
+            svService = new google.maps.StreetViewService();
+            svPanorama = new google.maps.StreetViewPanorama(
+                document.getElementById('sv-view'),
+                {
+                    position: userPosition,
+                    pov: { heading: getHeading(), pitch: 0 },
+                    disableDefaultUI: true,
+                    linksControl: false,
+                    panControl: false,
+                    zoomControl: false,
+                    fullscreenControl: false,
+                    motionTracking: false,
+                    motionTrackingControl: false,
+                    clickToGo: false
+                }
+            );
+
+            document.getElementById('sv-toggle').addEventListener('click', () => {
+                svOpen = !svOpen;
+                document.getElementById('sv-panel').classList.toggle('open', svOpen);
+                if (svOpen) updateStreetView();
+            });
+
+            document.getElementById('sv-snap').addEventListener('click', snapToStreetView);
+            document.getElementById('sv-calibrate').addEventListener('click', calibrateHeadingFromLinks);
+        }
+
+        function updateStreetView() {
+            if (!svPanorama || !svOpen) return;
+            svPanorama.setPosition(userPosition);
+            svPanorama.setPov({ heading: getHeading(), pitch: 0 });
+        }
+
+        // Snaps GPS position to the nearest outdoor Street View panorama
+        async function snapToStreetView() {
+            if (!svService) return;
+            const el = document.getElementById('sv-status');
+            el.textContent = '...';
+            try {
+                const res = await svService.getPanorama({
+                    location: userPosition,
+                    radius: 80,
+                    source: google.maps.StreetViewSource.OUTDOOR
+                });
+                const loc = res.data.location.latLng;
+                userPosition.lat = loc.lat();
+                userPosition.lng = loc.lng();
+                updateMap();
+                updateStreetView();
+                el.textContent = 'snap ok';
+            } catch (_) {
+                el.textContent = 'sem sv';
+            }
+        }
+
+        // Finds the road direction (panorama link) closest to the current compass
+        // heading and applies the difference as a heading correction offset.
+        async function calibrateHeadingFromLinks() {
+            if (!svService) return;
+            const el = document.getElementById('sv-status');
+            el.textContent = '...';
+            try {
+                const res = await svService.getPanorama({
+                    location: userPosition,
+                    radius: 80,
+                    source: google.maps.StreetViewSource.OUTDOOR
+                });
+                const links = res.data.links || [];
+                if (!links.length) { el.textContent = 'sem links'; return; }
+
+                // Build candidate road directions (each link + its opposite)
+                const candidates = [];
+                links.forEach(l => {
+                    candidates.push(l.heading);
+                    candidates.push((l.heading + 180) % 360);
+                });
+
+                // Pick candidate closest to raw device heading
+                let best = null, bestDiff = Infinity;
+                candidates.forEach(h => {
+                    const diff = Math.abs(((h - heading + 540) % 360) - 180);
+                    if (diff < bestDiff) { bestDiff = diff; best = h; }
+                });
+
+                if (best !== null && bestDiff < 45) {
+                    headingOffset = ((best - heading) + 540) % 360 - 180;
+                    updateStreetView();
+                    el.textContent = (headingOffset >= 0 ? '+' : '') + Math.round(headingOffset) + '°';
+                } else {
+                    headingOffset = 0;
+                    el.textContent = 'ok';
+                }
+            } catch (_) {
+                el.textContent = 'erro';
+            }
         }
 
         // ── Overlay de navegacao AR ───────────────────────────────
@@ -491,8 +663,7 @@
             const h = navCanvas.height;
             navCtx.clearRect(0, 0, w, h);
 
-            // Offset angular: quanto o POI esta desviado do heading atual
-            const offset = ((bearing - heading + 540) % 360) - 180; // -180..180
+            const offset = ((bearing - getHeading() + 540) % 360) - 180; // -180..180
             const shift  = Math.max(-w * 0.45, Math.min(w * 0.45, (offset / 90) * w * 0.5));
             const vpX    = w / 2 + shift;   // ponto de fuga
             const vpY    = h * 0.52;
@@ -576,6 +747,7 @@
             initOrientation();
             initGPS();
             initMap();
+            initStreetView();
             initNavOverlay();
             initHandTracking();
         });
