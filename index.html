@@ -273,6 +273,8 @@
         let bearing = 0;
         let closestPoi = pois[0];
         let compassActive = false;
+        let routePath = null;            // overview_path da rota calculada
+        let minDistToClosestPoi = Infinity; // atualizado em updateMap
 
         // heading efetivo = compass + correcao de calibracao
         function getHeading() { return (heading + headingOffset + 360) % 360; }
@@ -639,7 +641,7 @@
                 if (status !== 'OK') return;
                 directionsRenderer.setDirections(response);
                 const leg = response.routes[0].legs[0];
-                // Mostra distancia real da rota em vez de linha reta
+                routePath = response.routes[0].overview_path; // salva para bearing efetivo
                 document.getElementById('distance').textContent =
                     leg.distance.text + ' (~' + leg.duration.text + ')';
             });
@@ -658,6 +660,7 @@
                 );
                 if (d < minDist) { minDist = d; closestPoi = poi; }
             });
+            minDistToClosestPoi = minDist;
 
             document.getElementById('lat').textContent     = userPosition.lat.toFixed(5);
             document.getElementById('lng').textContent     = userPosition.lng.toFixed(5);
@@ -786,80 +789,162 @@
             navLoop();
         }
 
+        // Bearing usando o segmento da rota mais proximo; cai de volta para linha reta
+        function getEffectiveBearing() {
+            if (!routePath || routePath.length < 2) return bearing;
+            const userLL = new google.maps.LatLng(userPosition.lat, userPosition.lng);
+            let best = 0, bestD = Infinity;
+            routePath.forEach((pt, i) => {
+                const d = google.maps.geometry.spherical.computeDistanceBetween(userLL, pt);
+                if (d < bestD) { bestD = d; best = i; }
+            });
+            const nxt = Math.min(best + 1, routePath.length - 1);
+            if (nxt === best) return bearing;
+            return google.maps.geometry.spherical.computeHeading(routePath[best], routePath[nxt]);
+        }
+
         function drawNavGuide() {
             if (!navCanvas) return;
-            const w = navCanvas.width;
-            const h = navCanvas.height;
+            const w = navCanvas.width, h = navCanvas.height;
             navCtx.clearRect(0, 0, w, h);
 
-            const offset = ((bearing - getHeading() + 540) % 360) - 180; // -180..180
-            const shift  = Math.max(-w * 0.45, Math.min(w * 0.45, (offset / 90) * w * 0.5));
-            const vpX    = w / 2 + shift;   // ponto de fuga
-            const vpY    = h * 0.52;
+            if (minDistToClosestPoi < 25) { drawArrival(w, h); return; }
 
-            const bLx = w * 0.22, bRx = w * 0.78, bY = h;
+            const effB   = getEffectiveBearing();
+            const offset = ((effB - getHeading() + 540) % 360) - 180;
 
-            // Preenchimento do corredor
+            if (Math.abs(offset) > 110) { drawWrongWay(w, h); return; }
+
+            drawTrail(offset, w, h);
+        }
+
+        function drawTrail(offset, w, h) {
+            const clamp = Math.max(-75, Math.min(75, offset));
+            const vpX   = w / 2 + (clamp / 75) * w * 0.36;
+            const vpY   = h * 0.42;
+            const midX  = w / 2, bY = h;
+            const bLx   = w * 0.18, bRx = w * 0.82;
+
+            // Controle de curvatura
+            const lean = (offset / 180) * w * 0.15;
+            const cpX  = midX + lean, cpY = h * 0.63;
+            const cpLx = bLx * 0.52 + vpX * 0.48 + lean * 0.55;
+            const cpRx = bRx * 0.52 + vpX * 0.48 + lean * 0.55;
+            const cpEY = h * 0.63;
+
+            // Preenchimento com gradiente
             navCtx.save();
             navCtx.beginPath();
             navCtx.moveTo(bLx, bY);
-            navCtx.lineTo(vpX - 2, vpY);
-            navCtx.lineTo(vpX + 2, vpY);
-            navCtx.lineTo(bRx, bY);
+            navCtx.quadraticCurveTo(cpLx, cpEY, vpX - 1, vpY);
+            navCtx.lineTo(vpX + 1, vpY);
+            navCtx.quadraticCurveTo(cpRx, cpEY, bRx, bY);
             navCtx.closePath();
-            const fill = navCtx.createLinearGradient(0, vpY, 0, bY);
-            fill.addColorStop(0,   'rgba(0,130,255,0.00)');
-            fill.addColorStop(0.4, 'rgba(0,130,255,0.12)');
-            fill.addColorStop(1,   'rgba(0,130,255,0.38)');
-            navCtx.fillStyle = fill;
+            const gf = navCtx.createLinearGradient(0, vpY, 0, bY);
+            gf.addColorStop(0,    'rgba(0,140,255,0.00)');
+            gf.addColorStop(0.25, 'rgba(0,140,255,0.08)');
+            gf.addColorStop(1,    'rgba(0,140,255,0.28)');
+            navCtx.fillStyle = gf;
             navCtx.fill();
             navCtx.restore();
 
-            // Bordas com brilho
-            const glowLine = (x1, y1, x2, y2) => {
+            // Bordas curvas com brilho
+            const drawEdge = (x0, cpEX) => {
                 navCtx.save();
-                navCtx.shadowColor = '#0088ff';
-                navCtx.shadowBlur  = 20;
-                navCtx.strokeStyle = 'rgba(80,180,255,0.9)';
-                navCtx.lineWidth   = 3;
+                navCtx.shadowColor = '#0088ff'; navCtx.shadowBlur = 22;
+                navCtx.strokeStyle = 'rgba(70,175,255,0.82)'; navCtx.lineWidth = 2;
                 navCtx.beginPath();
-                navCtx.moveTo(x1, y1);
-                navCtx.lineTo(x2, y2);
+                navCtx.moveTo(x0, bY);
+                navCtx.quadraticCurveTo(cpEX, cpEY, vpX, vpY);
                 navCtx.stroke();
                 navCtx.restore();
             };
-            glowLine(bLx, bY, vpX, vpY);
-            glowLine(bRx, bY, vpX, vpY);
+            drawEdge(bLx, cpLx);
+            drawEdge(bRx, cpRx);
 
-            // Pulsos animados ao longo do corredor
-            navAnimPhase = (navAnimPhase + 0.018) % 1;
-            const midX = (bLx + bRx) / 2;
-            for (let i = 0; i < 5; i++) {
-                const t  = 1 - ((navAnimPhase + i / 5) % 1); // 0=VP, 1=base
-                const px = vpX + (midX - vpX) * t;
-                const py = vpY + (bY  - vpY) * t;
-                const r  = 3 + 15 * t;
+            // Linha central tracejada
+            navCtx.save();
+            navCtx.setLineDash([5, 13]);
+            navCtx.shadowColor = '#00aaff'; navCtx.shadowBlur = 9;
+            navCtx.strokeStyle = 'rgba(120,210,255,0.48)'; navCtx.lineWidth = 1.5;
+            navCtx.beginPath();
+            navCtx.moveTo(midX, bY);
+            navCtx.quadraticCurveTo(cpX, cpY, vpX, vpY);
+            navCtx.stroke();
+            navCtx.setLineDash([]);
+            navCtx.restore();
+
+            // Chevrons animados sobre a bezier central
+            // t=0: proximo ao usuario (base), t=1: ponto de fuga (longe)
+            navAnimPhase = (navAnimPhase + 0.013) % 1;
+            for (let i = 0; i < 4; i++) {
+                const t  = (navAnimPhase + i / 4) % 1;
+                const mt = 1 - t;
+                // Ponto na bezier P0=(midX,bY) P1=(cpX,cpY) P2=(vpX,vpY)
+                const cx = mt * mt * midX + 2 * mt * t * cpX + t * t * vpX;
+                const cy = mt * mt * bY   + 2 * mt * t * cpY + t * t * vpY;
+                // Tangente para rotacionar o chevron com a curva
+                const tdx = 2 * mt * (cpX - midX) + 2 * t * (vpX - cpX);
+                const tdy = 2 * mt * (cpY - bY)   + 2 * t * (vpY - cpY);
+                const size = 5 + 14 * mt;
                 navCtx.save();
-                navCtx.shadowColor = '#00aaff';
-                navCtx.shadowBlur  = 18;
+                navCtx.globalAlpha = 0.2 + 0.72 * mt;
+                navCtx.translate(cx, cy);
+                navCtx.rotate(Math.atan2(tdy, tdx) + Math.PI / 2);
+                navCtx.shadowColor = '#00aaff'; navCtx.shadowBlur = size * 1.1;
+                navCtx.fillStyle   = 'rgba(80,200,255,0.92)';
                 navCtx.beginPath();
-                navCtx.arc(px, py, r, 0, Math.PI * 2);
-                navCtx.fillStyle = `rgba(100,200,255,${0.15 + 0.6 * t})`;
+                navCtx.moveTo(0, -size);
+                navCtx.lineTo( size * 0.65,  size * 0.35);
+                navCtx.lineTo(0,             size * 0.05);
+                navCtx.lineTo(-size * 0.65,  size * 0.35);
+                navCtx.closePath();
                 navCtx.fill();
                 navCtx.restore();
             }
+        }
 
-            // Nome do POI proximo ao ponto de fuga
-            if (closestPoi) {
-                navCtx.save();
-                navCtx.font        = 'bold 13px Arial';
-                navCtx.fillStyle   = 'rgba(255,255,255,0.9)';
-                navCtx.textAlign   = 'center';
-                navCtx.shadowColor = '#0055ff';
-                navCtx.shadowBlur  = 12;
-                navCtx.fillText(closestPoi.name, vpX, vpY - 14);
-                navCtx.restore();
-            }
+        function drawWrongWay(w, h) {
+            const pw = 188, ph = 36, px = (w - pw) / 2, py = 52;
+            navCtx.save();
+            navCtx.fillStyle = 'rgba(0,0,0,0.62)';
+            rrect(navCtx, px, py, pw, ph, 18);
+            navCtx.fill();
+            navCtx.font = 'bold 15px Arial'; navCtx.textAlign = 'center';
+            navCtx.fillStyle = '#ff5050';
+            navCtx.shadowColor = '#ff2200'; navCtx.shadowBlur = 12;
+            navCtx.fillText('↩  Vire-se', w / 2, py + ph / 2 + 5.5);
+            navCtx.restore();
+        }
+
+        function drawArrival(w, h) {
+            const pulse = 0.72 + 0.28 * Math.sin(Date.now() * 0.004);
+            navCtx.save();
+            navCtx.shadowColor = '#00ff88'; navCtx.shadowBlur = 35;
+            navCtx.strokeStyle = `rgba(0,255,136,${0.65 * pulse})`;
+            navCtx.lineWidth   = 3;
+            navCtx.beginPath();
+            navCtx.arc(w / 2, h * 0.44, 42 * pulse, 0, Math.PI * 2);
+            navCtx.stroke();
+            navCtx.font = 'bold 18px Arial'; navCtx.textAlign = 'center';
+            navCtx.fillStyle = 'rgba(0,255,136,0.95)';
+            navCtx.shadowBlur = 14;
+            navCtx.fillText('Voce chegou!', w / 2, h * 0.44 + 7);
+            navCtx.restore();
+        }
+
+        function rrect(ctx, x, y, rw, rh, r) {
+            ctx.beginPath();
+            ctx.moveTo(x + r, y);
+            ctx.lineTo(x + rw - r, y);
+            ctx.quadraticCurveTo(x + rw, y,      x + rw, y + r);
+            ctx.lineTo(x + rw, y + rh - r);
+            ctx.quadraticCurveTo(x + rw, y + rh, x + rw - r, y + rh);
+            ctx.lineTo(x + r,  y + rh);
+            ctx.quadraticCurveTo(x, y + rh,      x, y + rh - r);
+            ctx.lineTo(x, y + r);
+            ctx.quadraticCurveTo(x, y,            x + r, y);
+            ctx.closePath();
         }
 
         function navLoop() {
