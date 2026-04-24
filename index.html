@@ -43,11 +43,10 @@
             inset: 0;
         }
 
-        /* 60% superior: câmera */
+        /* Camera: full-screen background */
         #camera-area {
             position: absolute;
-            top: 0; left: 0;
-            width: 100%; height: 60%;
+            inset: 0;
             overflow: hidden;
             background: #111;
         }
@@ -59,7 +58,6 @@
             object-fit: cover;
         }
 
-        /* canvas de landmarks, Three.js e guia de navegação — em cima do vídeo */
         #landmark-canvas,
         #hand-canvas,
         #nav-canvas {
@@ -69,54 +67,126 @@
             pointer-events: none;
         }
 
-        /* 40% inferior: mapa */
-        #map {
+        /* Nav HUD: teal circle + distance pill at top-center */
+        #nav-hud {
             position: absolute;
-            bottom: 0; left: 0;
-            width: 100%; height: 40%;
-        }
-
-        #status-panel {
-            position: absolute;
-            top: 8px; right: 8px;
-            background: rgba(0, 0, 0, 0.72);
-            padding: 8px 12px;
-            border-radius: 8px;
-            font-size: 0.75em;
-            line-height: 1.7;
-            z-index: 10;
+            top: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            z-index: 15;
             pointer-events: none;
         }
+        #nav-arrow-circle {
+            width: 72px; height: 72px;
+            background: #00BFA5;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 20px rgba(0,191,165,0.55);
+        }
+        #arrow-svg {
+            width: 38px; height: 38px;
+            display: block;
+            transition: transform 0.35s ease;
+        }
+        #nav-pill {
+            background: rgba(255,255,255,0.95);
+            color: #222;
+            font-size: 13px;
+            font-weight: 600;
+            padding: 5px 16px;
+            border-radius: 14px;
+            white-space: nowrap;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.22);
+        }
 
+        /* Bottom sheet: white rounded card with map + bottom-nav */
+        #bottom-sheet {
+            position: absolute;
+            bottom: 0; left: 0;
+            width: 100%; height: 42%;
+            background: #fff;
+            border-radius: 20px 20px 0 0;
+            overflow: hidden;
+            z-index: 5;
+            display: flex;
+            flex-direction: column;
+        }
+        #map {
+            flex: 1;
+            width: 100%;
+            min-height: 0;
+        }
+        #bottom-nav {
+            display: flex;
+            background: #fff;
+            border-top: 1px solid rgba(0,0,0,0.08);
+            height: 56px;
+            flex-shrink: 0;
+        }
+        .nav-tab {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 3px;
+            font-size: 11px;
+            color: #888;
+            cursor: pointer;
+            touch-action: manipulation;
+            border: none;
+            background: none;
+        }
+        .nav-tab.active { color: #00BFA5; }
+        .nav-tab svg { width: 22px; height: 22px; }
+
+        /* Exit button: top-right */
         #exit-btn {
             position: absolute;
-            top: 8px; left: 8px;
+            top: 8px; right: 8px;
             padding: 8px 14px;
-            background: #f44336;
+            background: rgba(244,67,54,0.85);
             color: white;
             border: none;
             border-radius: 6px;
             cursor: pointer;
             font-size: 0.9em;
-            z-index: 10;
+            z-index: 20;
             touch-action: manipulation;
+            backdrop-filter: blur(4px);
         }
 
-        #arrows {
+        /* GPS / Bussola pills: top-left */
+        #status-bar {
             position: absolute;
-            top: calc(60% - 1.4em);
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: 2.5em;
-            z-index: 10;
-            text-shadow: 0 0 10px rgba(255, 255, 255, 0.9);
+            top: 8px; left: 8px;
+            z-index: 20;
+            display: flex; gap: 5px;
             pointer-events: none;
         }
+        .status-pill {
+            font-size: 11px;
+            padding: 4px 10px;
+            border-radius: 10px;
+            background: rgba(0,0,0,0.55);
+            backdrop-filter: blur(4px);
+            color: #999;
+        }
+        .status-pill.ok { color: #4BD4D2; }
 
-        /* Street View panel */
+        /* Hidden elements kept for JS compatibility */
+        #status-panel, #arrows { display: none; }
+
+        /* Street View: floats above bottom sheet */
         #sv-panel {
             position: absolute;
-            bottom: 8px; right: 8px;
+            bottom: calc(42% + 8px); right: 8px;
             z-index: 11;
             border-radius: 10px;
             overflow: hidden;
@@ -168,29 +238,9 @@
             text-align: right;
         }
 
-        /* Status GPS / Bussola */
-        #status-bar {
-            position: absolute;
-            top: 8px; left: 55px;
-            z-index: 10;
-            display: flex; gap: 5px;
-            pointer-events: none;
-        }
-        .status-pill {
-            font-size: 11px;
-            padding: 3px 8px;
-            border-radius: 10px;
-            background: rgba(0,0,0,0.58);
-            backdrop-filter: blur(4px);
-            color: #999;
-        }
-        .status-pill.ok { color: #4BD4D2; }
-
         @media (max-width: 480px) {
             #initial-screen h1 { font-size: 1.8em; }
             #start-btn { font-size: 1em; }
-            #status-panel { font-size: 0.65em; }
-            #arrows { font-size: 2em; }
             #sv-panel.open #sv-view { width: 170px; height: 102px; }
         }
     </style>
@@ -205,13 +255,21 @@
     <div id="main-container">
         <div id="camera-area">
             <video id="video" autoplay muted playsinline webkit-playsinline></video>
-            <!-- landmarks da mão desenhados em 2D -->
             <canvas id="landmark-canvas"></canvas>
-            <!-- cubo Three.js -->
             <canvas id="hand-canvas"></canvas>
-            <!-- guia de navegação AR -->
             <canvas id="nav-canvas"></canvas>
-            <!-- painel Street View -->
+
+            <!-- Nav HUD: teal arrow + distance/time pill -->
+            <div id="nav-hud">
+                <div id="nav-arrow-circle">
+                    <svg id="arrow-svg" viewBox="0 0 38 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M19 5 L30 32 L19 25 L8 32 Z" fill="white"/>
+                    </svg>
+                </div>
+                <div id="nav-pill">-- m  -- min</div>
+            </div>
+
+            <!-- Street View panel -->
             <div id="sv-panel">
                 <button id="sv-toggle">🗺 Street View</button>
                 <div id="sv-view"></div>
@@ -223,17 +281,35 @@
             </div>
         </div>
 
-        <div id="map"></div>
+        <!-- Bottom sheet with map and navigation bar -->
+        <div id="bottom-sheet">
+            <div id="map"></div>
+            <nav id="bottom-nav">
+                <button class="nav-tab active" id="tab-mapa">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z"/></svg>
+                    Mapa
+                </button>
+                <button class="nav-tab" id="tab-qr">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 11h8V3H3v8zm2-6h4v4H5V5zm8-2v8h8V3h-8zm6 6h-4V5h4v4zM3 21h8v-8H3v8zm2-6h4v4H5v-4zm8 4h2v2h-2zm0-4h2v2h-2zm2 2h2v2h-2zm2-2h2v4h-4v-2h2zm0 4h2v2h-2z"/></svg>
+                    QR Code
+                </button>
+                <button class="nav-tab" id="tab-libras">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 6c0-1.1-.9-2-2-2s-2 .9-2 2h2v1H9V6H7v1H5V6c0-1.1-.9-2-2-2v10c0 2.76 2.24 5 5 5h4c2.76 0 5-2.24 5-5V9h-4V6zm2 8c0 1.65-1.35 3-3 3H8c-1.65 0-3-1.35-3-3V8h2v1h2V8h2v1h2V8h2v6z"/></svg>
+                    Libras
+                </button>
+            </nav>
+        </div>
 
-        <div id="status-panel">
+        <!-- Hidden elements kept for JS compatibility -->
+        <div id="status-panel" style="display:none">
             <div>Lat: <span id="lat">--</span></div>
             <div>Lng: <span id="lng">--</span></div>
             <div>Heading: <span id="heading">--</span>°</div>
             <div>Dist. POI: <span id="distance">--</span> m</div>
             <div>Mão: <span id="hand-status">--</span></div>
         </div>
+        <div id="arrows" style="display:none">↑</div>
 
-        <div id="arrows">↑</div>
         <button id="exit-btn">Sair</button>
         <div id="status-bar">
             <span class="status-pill" id="st-gps">GPS...</span>
@@ -550,9 +626,12 @@
         function atualizarDirecao() {
             document.getElementById('heading').textContent = Math.round(getHeading());
             if (bearing !== 0) {
-                const dir = Math.round((bearing - getHeading() + 360) % 360 / 45) % 8;
+                const rawOffset = (bearing - getHeading() + 360) % 360;
+                const dir = Math.round(rawOffset / 45) % 8;
                 document.getElementById('arrows').textContent =
                     ['↑','↗','→','↘','↓','↙','←','↖'][dir];
+                const arrowSvg = document.getElementById('arrow-svg');
+                if (arrowSvg) arrowSvg.style.transform = `rotate(${rawOffset}deg)`;
             }
             updateStreetView();
         }
@@ -644,6 +723,8 @@
                 routePath = response.routes[0].overview_path; // salva para bearing efetivo
                 document.getElementById('distance').textContent =
                     leg.distance.text + ' (~' + leg.duration.text + ')';
+                const navPill = document.getElementById('nav-pill');
+                if (navPill) navPill.textContent = leg.distance.text + '  ' + leg.duration.text;
             });
         }
 
@@ -668,15 +749,20 @@
             // Distancia linha reta enquanto a rota de caminhada nao chegar
             if (!lastRoutePos) {
                 document.getElementById('distance').textContent = Math.round(minDist) + ' m';
+                const navPill = document.getElementById('nav-pill');
+                if (navPill) navPill.textContent = Math.round(minDist) + ' m';
             }
 
             bearing = google.maps.geometry.spherical.computeHeading(
                 new google.maps.LatLng(userPosition.lat, userPosition.lng),
                 new google.maps.LatLng(closestPoi.lat, closestPoi.lng)
             );
-            const dir = Math.round((bearing - getHeading() + 360) % 360 / 45) % 8;
+            const rawOffset = (bearing - getHeading() + 360) % 360;
+            const dir = Math.round(rawOffset / 45) % 8;
             document.getElementById('arrows').textContent =
                 ['↑','↗','→','↘','↓','↙','←','↖'][dir];
+            const arrowSvg = document.getElementById('arrow-svg');
+            if (arrowSvg) arrowSvg.style.transform = `rotate(${rawOffset}deg)`;
 
             updateStreetView();
         }
@@ -822,7 +908,7 @@
             const clamp = Math.max(-75, Math.min(75, offset));
             const vpX   = w / 2 + (clamp / 75) * w * 0.36;
             const vpY   = h * 0.42;
-            const midX  = w / 2, bY = h;
+            const midX  = w / 2, bY = h * 0.57;
             const bLx   = w * 0.18, bRx = w * 0.82;
 
             // Controle de curvatura
