@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Maps Tour AR - Aracaju, Sergipe</title>
     <style>
+        :root { --sheet-h: 42%; }
+
         html, body {
             margin: 0;
             padding: 0;
@@ -109,7 +111,8 @@
         #bottom-sheet {
             position: absolute;
             bottom: 0; left: 0;
-            width: 100%; height: 42%;
+            width: 100%; height: var(--sheet-h);
+            transition: height 0.3s ease;
             background: #fff;
             border-radius: 20px 20px 0 0;
             overflow: hidden;
@@ -183,10 +186,13 @@
         /* Hidden elements kept for JS compatibility */
         #status-panel, #arrows { display: none; }
 
+        /* map hidden when Mapa tab toggled off */
+        #bottom-sheet.map-off #map { display: none; }
+
         /* Street View: floats above bottom sheet */
         #sv-panel {
             position: absolute;
-            bottom: calc(42% + 8px); right: 8px;
+            bottom: calc(var(--sheet-h) + 8px); right: 8px;
             z-index: 11;
             border-radius: 10px;
             overflow: hidden;
@@ -1067,6 +1073,42 @@
             if (video.srcObject) video.srcObject.getTracks().forEach(t => t.stop());
             location.reload();
         });
+
+        // ── Tab: Mapa (toggle map visibility) ─────────────────────
+        document.getElementById('tab-mapa').addEventListener('click', () => {
+            const sheet  = document.getElementById('bottom-sheet');
+            const tab    = document.getElementById('tab-mapa');
+            const mapOff = sheet.classList.toggle('map-off');
+            tab.classList.toggle('active', !mapOff);
+            document.documentElement.style.setProperty('--sheet-h', mapOff ? '56px' : '42%');
+        });
+
+        // ── Tab: Libras (toggle VLibras widget) ────────────────────
+        document.getElementById('tab-libras').addEventListener('click', () => {
+            const widget = document.getElementById('vlibras-widget');
+            const tab    = document.getElementById('tab-libras');
+            const show   = widget.style.display === 'none';
+            widget.style.display = show ? 'block' : 'none';
+            tab.classList.toggle('active', show);
+            if (show) {
+                setTimeout(() => {
+                    const btn = widget.querySelector('[vw-access-button]');
+                    if (btn) btn.click();
+                }, 80);
+            }
+        });
+    </script>
+
+    <!-- VLibras: inicializado oculto, ativado pelo botão Libras -->
+    <div vw class="enabled" id="vlibras-widget" style="display:none">
+        <div vw-access-button class="active"></div>
+        <div vw-plugin-wrapper>
+            <div class="vw-plugin-top-wrapper"></div>
+        </div>
+    </div>
+    <script src="https://vlibras.gov.br/app/vlibras-plugin.js"></script>
+    <script>
+        new window.VLibras.Widget('https://vlibras.gov.br/app');
     </script>
 </body>
 </html>
