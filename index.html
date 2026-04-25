@@ -358,6 +358,11 @@
         let routePath = null;            // overview_path da rota calculada
         let minDistToClosestPoi = Infinity; // atualizado em updateMap
 
+        // ── Live View AR: rastreamento contínuo da seta ──────────
+        let prevArrowDiff       = 0;   // último rawAngle para calcular delta
+        let continuousArrowAngle = 0;  // ângulo acumulado sem wrap → sem flip CSS
+        let autoCalibDone       = false; // calibração automática de heading
+
         // heading efetivo = compass + correcao de calibracao
         function getHeading() { return (heading + headingOffset + 360) % 360; }
 
@@ -628,17 +633,44 @@
             }
         }
 
+        // ── Live View AR: seta com rastreamento contínuo ─────────
+        // Usa getEffectiveBearing() (ao longo da rota) quando disponível,
+        // e rastreamento de ângulo contínuo para evitar o flip 0°/360° no CSS.
+        function updateArrowDisplay() {
+            // Rumo efetivo: segue a rota real; cai para linha reta se não há rota
+            const navBearing = (routePath && routePath.length >= 2)
+                ? getEffectiveBearing()
+                : bearing;
+            if (navBearing == null || isNaN(navBearing)) return;
+
+            // Ângulo de desvio: +direita, -esquerda, range -180..180
+            const rawAngle = ((navBearing - getHeading() + 540) % 360) - 180;
+
+            // Delta sempre pelo caminho mais curto → sem flip 359°→1°
+            let delta = rawAngle - prevArrowDiff;
+            while (delta >  180) delta -= 360;
+            while (delta < -180) delta += 360;
+            continuousArrowAngle += delta;
+            prevArrowDiff = rawAngle;
+
+            const arrowSvg = document.getElementById('arrow-svg');
+            if (arrowSvg) arrowSvg.style.transform = `rotate(${continuousArrowAngle}deg)`;
+
+            // Cor do círculo: feedback visual imediato do alinhamento
+            const abs    = Math.abs(rawAngle);
+            const circle = document.getElementById('nav-arrow-circle');
+            if (circle) {
+                if      (minDistToClosestPoi < 15) circle.style.background = '#00C853'; // verde – chegou
+                else if (abs < 20)                 circle.style.background = '#00BFA5'; // teal – em frente
+                else if (abs < 70)                 circle.style.background = '#FF8C00'; // laranja – virar
+                else                               circle.style.background = '#E53935'; // vermelho – errado
+            }
+        }
+
         // Atualiza heading display, seta e Street View sem recalcular POIs/rota
         function atualizarDirecao() {
             document.getElementById('heading').textContent = Math.round(getHeading());
-            if (bearing !== 0) {
-                const rawOffset = (bearing - getHeading() + 360) % 360;
-                const dir = Math.round(rawOffset / 45) % 8;
-                document.getElementById('arrows').textContent =
-                    ['↑','↗','→','↘','↓','↙','←','↖'][dir];
-                const arrowSvg = document.getElementById('arrow-svg');
-                if (arrowSvg) arrowSvg.style.transform = `rotate(${rawOffset}deg)`;
-            }
+            if (bearing !== 0) updateArrowDisplay();
             updateStreetView();
         }
 
@@ -673,6 +705,19 @@
                     document.getElementById('st-gps').textContent = 'GPS OK';
                     document.getElementById('st-gps').classList.add('ok');
                     updateMap();
+
+                    // Auto-calibração Live View: alinha bússola com as ruas reais via Street View
+                    // Executa uma única vez após o primeiro GPS lock, de forma silenciosa
+                    if (!autoCalibDone && svService) {
+                        autoCalibDone = true;
+                        setTimeout(async () => {
+                            try {
+                                await snapToStreetView();
+                                await calibrateHeadingFromLinks();
+                                document.getElementById('st-bus').textContent = 'Bussola Cal.';
+                            } catch (_) {}
+                        }, 1800);
+                    }
 
                     // Recalcula rota apenas ao mover >10 m (debounce 1.2 s)
                     const moveu = !lastRoutePos
@@ -765,21 +810,23 @@
             document.getElementById('heading').textContent = Math.round(getHeading());
             // Distancia linha reta enquanto a rota de caminhada nao chegar
             if (!lastRoutePos) {
+                const minsEst = Math.max(1, Math.round(minDist / 84)); // 1,4 m/s → ~84 m/min
                 document.getElementById('distance').textContent = Math.round(minDist) + ' m';
                 const navPill = document.getElementById('nav-pill');
-                if (navPill) navPill.textContent = Math.round(minDist) + ' m';
+                if (navPill) navPill.textContent = Math.round(minDist) + ' m  ' + minsEst + ' min';
             }
 
             bearing = google.maps.geometry.spherical.computeHeading(
                 new google.maps.LatLng(userPosition.lat, userPosition.lng),
                 new google.maps.LatLng(closestPoi.lat, closestPoi.lng)
             );
-            const rawOffset = (bearing - getHeading() + 360) % 360;
-            const dir = Math.round(rawOffset / 45) % 8;
+            // Mantém o display de seta legado (para compatibilidade com status-panel)
+            const rawOffset = ((bearing - getHeading() + 540) % 360) - 180;
+            const dir = Math.round((rawOffset + 180) / 45) % 8;
             document.getElementById('arrows').textContent =
                 ['↑','↗','→','↘','↓','↙','←','↖'][dir];
-            const arrowSvg = document.getElementById('arrow-svg');
-            if (arrowSvg) arrowSvg.style.transform = `rotate(${rawOffset}deg)`;
+            // Seta Live View AR: rastreamento contínuo + rumo efetivo da rota
+            updateArrowDisplay();
 
             updateStreetView();
         }
@@ -1081,6 +1128,45 @@
             const mapOff = sheet.classList.toggle('map-off');
             tab.classList.toggle('active', !mapOff);
             document.documentElement.style.setProperty('--sheet-h', mapOff ? '56px' : '42%');
+        });
+
+        // ── Toast: notificação leve sem bloquear thread ────────────
+        function showToast(msg, ms = 2800) {
+            let t = document.getElementById('app-toast');
+            if (!t) {
+                t = document.createElement('div');
+                t.id = 'app-toast';
+                Object.assign(t.style, {
+                    position: 'fixed',
+                    bottom: 'calc(var(--sheet-h) + 14px)',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    background: 'rgba(0,0,0,0.80)',
+                    color: '#fff',
+                    padding: '10px 22px',
+                    borderRadius: '22px',
+                    fontSize: '13px',
+                    zIndex: '50',
+                    pointerEvents: 'none',
+                    opacity: '0',
+                    transition: 'opacity 0.25s',
+                    backdropFilter: 'blur(6px)',
+                    whiteSpace: 'nowrap',
+                });
+                document.body.appendChild(t);
+            }
+            t.textContent = msg;
+            t.style.opacity = '1';
+            clearTimeout(t._timer);
+            t._timer = setTimeout(() => { t.style.opacity = '0'; }, ms);
+        }
+
+        // ── Tab: QR Code ───────────────────────────────────────────
+        document.getElementById('tab-qr').addEventListener('click', () => {
+            const tab = document.getElementById('tab-qr');
+            tab.classList.add('active');
+            setTimeout(() => tab.classList.remove('active'), 350);
+            showToast('📷 Aponte a câmera para um QR Code turístico');
         });
 
         // ── Tab: Libras (toggle VLibras widget) ────────────────────
