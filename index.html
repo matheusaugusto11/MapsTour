@@ -2,1113 +2,1060 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Maps Tour AR - Aracaju, Sergipe</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AR Navegação Live View</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.11.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
     <style>
-        :root { --sheet-h: 42%; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
-        html, body {
-            margin: 0;
-            padding: 0;
-            height: 100%;
-            overflow: hidden;
+        body {
             background: #000;
-            font-family: Arial, sans-serif;
-            color: #fff;
-        }
-
-        #initial-screen {
-            position: fixed;
-            inset: 0;
-            background: linear-gradient(45deg, #1e3c72, #2a5298);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 100;
-        }
-        #initial-screen h1 { font-size: 2.5em; margin-bottom: 20px; text-align: center; }
-        #start-btn {
-            padding: 15px 30px;
-            font-size: 1.2em;
-            background: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            touch-action: manipulation;
-        }
-
-        #main-container {
-            display: none;
-            position: fixed;
-            inset: 0;
-        }
-
-        /* Camera: full-screen background */
-        #camera-area {
-            position: absolute;
-            inset: 0;
             overflow: hidden;
-            background: #111;
+            height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            color: #fff;
+            user-select: none;
         }
 
-        #video {
-            position: absolute;
+        /* ===== CAMERA ===== */
+        #camera-feed {
+            position: fixed;
             top: 0; left: 0;
             width: 100%; height: 100%;
             object-fit: cover;
+            z-index: 1;
         }
 
-        #landmark-canvas,
-        #hand-canvas,
-        #nav-canvas {
-            position: absolute;
+        #detection-canvas {
+            position: fixed;
             top: 0; left: 0;
             width: 100%; height: 100%;
+            z-index: 2;
             pointer-events: none;
         }
 
-        /* Nav HUD: teal circle + distance pill at top-center */
-        #nav-hud {
+        /* ===== AR UI ===== */
+        #ar-ui {
+            position: fixed;
+            inset: 0;
+            z-index: 10;
+            display: none;
+            pointer-events: none;
+        }
+
+        #ar-ui.active { display: block; }
+
+        /* TOP BAR */
+        #top-bar {
             position: absolute;
-            top: 16px;
-            left: 50%;
-            transform: translateX(-50%);
+            top: 0; left: 0; right: 0;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.75) 60%, transparent);
+            padding: 44px 20px 50px;
             display: flex;
             flex-direction: column;
+            gap: 10px;
+        }
+
+        #distance-display {
+            font-size: 52px;
+            font-weight: 700;
+            letter-spacing: -1px;
+            line-height: 1;
+            text-shadow: 0 2px 12px rgba(0,0,0,0.9);
+        }
+
+        #dist-unit {
+            font-size: 24px;
+            font-weight: 400;
+        }
+
+        #instruction-pill {
+            display: inline-flex;
             align-items: center;
             gap: 8px;
-            z-index: 15;
-            pointer-events: none;
-        }
-        #nav-arrow-circle {
-            width: 72px; height: 72px;
-            background: #00BFA5;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 4px 20px rgba(0,191,165,0.55);
-        }
-        #arrow-svg {
-            width: 38px; height: 38px;
-            display: block;
-            transition: transform 0.35s ease;
-        }
-        #nav-pill {
-            background: rgba(255,255,255,0.95);
-            color: #222;
-            font-size: 13px;
+            background: rgba(0, 118, 255, 0.88);
+            backdrop-filter: blur(8px);
+            padding: 10px 18px;
+            border-radius: 24px;
+            font-size: 16px;
             font-weight: 600;
-            padding: 5px 16px;
-            border-radius: 14px;
-            white-space: nowrap;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.22);
+            max-width: max-content;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+            transition: background 0.4s ease;
         }
 
-        /* Bottom sheet: white rounded card with map + bottom-nav */
-        #bottom-sheet {
+        #instruction-pill.on-track {
+            background: rgba(48, 209, 88, 0.9);
+        }
+
+        #instruction-pill.behind {
+            background: rgba(255, 69, 58, 0.88);
+        }
+
+        /* CENTRAL ARROW */
+        #arrow-container {
             position: absolute;
-            bottom: 0; left: 0;
-            width: 100%; height: var(--sheet-h);
-            transition: height 0.3s ease;
-            background: #fff;
-            border-radius: 20px 20px 0 0;
-            overflow: hidden;
-            z-index: 5;
-            display: flex;
-            flex-direction: column;
-        }
-        #map {
-            flex: 1;
-            width: 100%;
-            min-height: 0;
-        }
-        #bottom-nav {
-            display: flex;
-            background: #fff;
-            border-top: 1px solid rgba(0,0,0,0.08);
-            height: 56px;
-            flex-shrink: 0;
-        }
-        .nav-tab {
-            flex: 1;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
             display: flex;
             flex-direction: column;
             align-items: center;
+            gap: 16px;
+        }
+
+        #compass-ring {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            border: 3px solid rgba(255,255,255,0.35);
+            background: radial-gradient(circle at center,
+                rgba(0, 118, 255, 0.18) 0%,
+                rgba(0, 0, 0, 0.35) 100%);
+            display: flex;
+            align-items: center;
             justify-content: center;
-            gap: 3px;
-            font-size: 11px;
-            color: #888;
-            cursor: pointer;
-            touch-action: manipulation;
-            border: none;
-            background: none;
-        }
-        .nav-tab.active { color: #00BFA5; }
-        .nav-tab svg { width: 22px; height: 22px; }
-
-        /* Exit button: top-right */
-        #exit-btn {
-            position: absolute;
-            top: 8px; right: 8px;
-            padding: 8px 14px;
-            background: rgba(244,67,54,0.85);
-            color: white;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 0.9em;
-            z-index: 20;
-            touch-action: manipulation;
+            box-shadow:
+                0 0 0 1px rgba(255,255,255,0.1),
+                0 0 40px rgba(0, 118, 255, 0.35),
+                inset 0 0 30px rgba(0,0,0,0.4);
             backdrop-filter: blur(4px);
+            transition: border-color 0.4s ease, box-shadow 0.4s ease;
         }
 
-        /* GPS / Bussola pills: top-left */
-        #status-bar {
+        #compass-ring.on-track {
+            border-color: rgba(48, 209, 88, 0.7);
+            box-shadow:
+                0 0 0 1px rgba(48,209,88,0.2),
+                0 0 50px rgba(48, 209, 88, 0.5),
+                inset 0 0 20px rgba(48,209,88,0.1);
+        }
+
+        #compass-ring.behind {
+            border-color: rgba(255, 69, 58, 0.7);
+            box-shadow:
+                0 0 0 1px rgba(255,69,58,0.2),
+                0 0 50px rgba(255, 69, 58, 0.5),
+                inset 0 0 20px rgba(255,69,58,0.1);
+        }
+
+        /* SVG Arrow */
+        #nav-arrow-svg {
+            width: 80px;
+            height: 80px;
+            /* transition uses spring-like cubic-bezier for smooth rotation */
+            transition: transform 0.35s cubic-bezier(0.34, 1.2, 0.64, 1);
+            filter: drop-shadow(0 4px 10px rgba(0,0,0,0.7));
+        }
+
+        #heading-info {
+            font-size: 13px;
+            color: rgba(255,255,255,0.75);
+            background: rgba(0,0,0,0.55);
+            backdrop-filter: blur(6px);
+            padding: 5px 14px;
+            border-radius: 14px;
+            text-align: center;
+        }
+
+        /* BOTTOM BAR */
+        #bottom-bar {
             position: absolute;
-            top: 8px; left: 8px;
-            z-index: 20;
-            display: flex; gap: 5px;
+            bottom: 0; left: 0; right: 0;
+            background: linear-gradient(to top, rgba(0,0,0,0.75) 60%, transparent);
+            padding: 60px 20px 36px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        #accuracy-text {
+            font-size: 12px;
+            color: rgba(255,255,255,0.55);
+            text-align: center;
+        }
+
+        /* MINI MAP */
+        #mini-map {
+            position: absolute;
+            bottom: 100px;
+            right: 16px;
+            width: 110px;
+            height: 110px;
+            border-radius: 14px;
+            overflow: hidden;
+            border: 2px solid rgba(255,255,255,0.25);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.6);
             pointer-events: none;
         }
-        .status-pill {
-            font-size: 11px;
-            padding: 4px 10px;
-            border-radius: 10px;
-            background: rgba(0,0,0,0.55);
-            backdrop-filter: blur(4px);
-            color: #999;
+
+        #map-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
         }
-        .status-pill.ok { color: #4BD4D2; }
 
-        /* Hidden elements kept for JS compatibility */
-        #status-panel, #arrows { display: none; }
+        /* CONTROLS (pointer-events: auto to receive clicks) */
+        #controls {
+            position: fixed;
+            bottom: 36px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 20;
+            display: flex;
+            gap: 12px;
+            pointer-events: auto;
+        }
 
-        /* map hidden when Mapa tab toggled off */
-        #bottom-sheet.map-off #map { display: none; }
+        .btn {
+            padding: 13px 24px;
+            font-size: 15px;
+            font-weight: 700;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            backdrop-filter: blur(12px);
+            transition: transform 0.15s ease, opacity 0.15s ease;
+            white-space: nowrap;
+        }
 
-        /* Street View: floats above bottom sheet */
-        #sv-panel {
-            position: absolute;
-            bottom: calc(var(--sheet-h) + 8px); right: 8px;
-            z-index: 11;
-            border-radius: 10px;
-            overflow: hidden;
+        .btn:active { transform: scale(0.95); opacity: 0.85; }
+
+        .btn-primary {
+            background: rgba(0, 118, 255, 0.92);
+            color: #fff;
+            box-shadow: 0 4px 20px rgba(0, 118, 255, 0.5);
+        }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.18);
+            color: #fff;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.4);
+        }
+
+        /* DEBUG PANEL */
+        #debug-panel {
+            position: fixed;
+            top: 16px;
+            right: 16px;
             background: rgba(0,0,0,0.82);
             border: 1px solid rgba(255,255,255,0.15);
-        }
-        #sv-toggle {
-            width: 100%;
-            padding: 7px 12px;
-            background: rgba(25,55,130,0.95);
-            color: white;
-            border: none;
-            cursor: pointer;
-            font-size: 0.78em;
-            text-align: left;
-            touch-action: manipulation;
-        }
-        #sv-view {
-            width: 0; height: 0;
-            transition: width 0.22s, height 0.22s;
-        }
-        #sv-panel.open #sv-view {
-            width: 220px;
-            height: 132px;
-        }
-        #sv-controls {
+            border-radius: 10px;
+            padding: 10px 14px;
+            font-size: 11px;
+            font-family: 'Courier New', monospace;
+            z-index: 30;
             display: none;
-            padding: 5px 6px;
-            gap: 5px;
-            align-items: center;
-        }
-        #sv-panel.open #sv-controls { display: flex; }
-        #sv-snap, #sv-calibrate {
-            flex: 1;
-            padding: 5px 0;
-            font-size: 0.7em;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            touch-action: manipulation;
-            color: white;
-        }
-        #sv-snap      { background: #1976D2; }
-        #sv-calibrate { background: #7B1FA2; }
-        #sv-status {
-            font-size: 0.65em;
-            color: #aaa;
-            min-width: 36px;
-            text-align: right;
+            min-width: 200px;
+            pointer-events: auto;
         }
 
-        @media (max-width: 480px) {
-            #initial-screen h1 { font-size: 1.8em; }
-            #start-btn { font-size: 1em; }
-            #sv-panel.open #sv-view { width: 170px; height: 102px; }
+        #debug-panel.visible { display: block; }
+
+        .dbg-row {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            margin: 3px 0;
+        }
+
+        .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .dot-ok  { background: #30D158; }
+        .dot-err { background: #FF453A; }
+        .dot-warn { background: #FF9F0A; }
+
+        /* ===== START SCREEN ===== */
+        #start-screen {
+            position: fixed;
+            inset: 0;
+            background: linear-gradient(160deg, #0a0a1a 0%, #001030 100%);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            padding: 32px;
+        }
+
+        #start-screen h1 {
+            font-size: 30px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            text-align: center;
+        }
+
+        #start-screen p {
+            font-size: 15px;
+            color: rgba(255,255,255,0.55);
+            text-align: center;
+            max-width: 300px;
+            line-height: 1.5;
+        }
+
+        .start-divider {
+            width: 40px;
+            height: 2px;
+            background: rgba(0, 118, 255, 0.6);
+            border-radius: 2px;
+        }
+
+        #calibration-hint {
+            font-size: 12px;
+            color: rgba(255,255,255,0.4);
+            text-align: center;
+            max-width: 280px;
+            line-height: 1.5;
+        }
+
+        /* ===== DESTINATION MODAL ===== */
+        #dest-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.75);
+            backdrop-filter: blur(8px);
+            z-index: 50;
+            display: none;
+            align-items: flex-end;
+            justify-content: center;
+            padding: 0;
+        }
+
+        #dest-modal.open { display: flex; }
+
+        .modal-sheet {
+            background: #1C1C1E;
+            border-radius: 20px 20px 0 0;
+            padding: 28px 24px 40px;
+            width: 100%;
+            max-width: 480px;
+        }
+
+        .modal-handle {
+            width: 40px; height: 5px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 3px;
+            margin: 0 auto 20px;
+        }
+
+        .modal-sheet h2 {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 18px;
+        }
+
+        .modal-sheet label {
+            display: block;
+            font-size: 12px;
+            color: rgba(255,255,255,0.5);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .modal-sheet input {
+            width: 100%;
+            padding: 13px 16px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.15);
+            background: #2C2C2E;
+            color: #fff;
+            font-size: 16px;
+            margin-bottom: 14px;
+            outline: none;
+        }
+
+        .modal-sheet input:focus {
+            border-color: rgba(0, 118, 255, 0.7);
+        }
+
+        .modal-hint {
+            font-size: 12px;
+            color: rgba(255,255,255,0.4);
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+
+        .btn-row { display: flex; gap: 10px; }
+
+        /* COMPASS CALIBRATION OVERLAY */
+        #calib-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.85);
+            z-index: 60;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            text-align: center;
+            padding: 32px;
+        }
+
+        #calib-overlay.visible { display: flex; }
+
+        #calib-overlay h2 { font-size: 22px; }
+        #calib-overlay p { font-size: 15px; color: rgba(255,255,255,0.6); max-width: 280px; }
+
+        .calib-figure {
+            font-size: 64px;
+            animation: figure8 2s ease-in-out infinite;
+        }
+
+        @keyframes figure8 {
+            0%   { transform: translate(0, 0) rotate(0deg); }
+            25%  { transform: translate(20px, -15px) rotate(90deg); }
+            50%  { transform: translate(0, 0) rotate(180deg); }
+            75%  { transform: translate(-20px, -15px) rotate(270deg); }
+            100% { transform: translate(0, 0) rotate(360deg); }
+        }
+
+        /* Responsive */
+        @media (max-width: 400px) {
+            #distance-display { font-size: 42px; }
+            #compass-ring { width: 120px; height: 120px; }
+            #nav-arrow-svg { width: 65px; height: 65px; }
         }
     </style>
 </head>
 <body>
 
-    <div id="initial-screen">
-        <h1>Maps Tour AR<br>Aracaju</h1>
-        <button id="start-btn">Iniciar</button>
+<!-- ===== START SCREEN ===== -->
+<div id="start-screen">
+    <h1>AR Live Navigation</h1>
+    <p>Navegação em realidade aumentada com seta direcional em tempo real</p>
+    <div class="start-divider"></div>
+    <button class="btn btn-primary" id="start-btn" style="font-size:17px;padding:16px 40px;">
+        Iniciar Navegação
+    </button>
+    <button class="btn btn-secondary" id="set-dest-start-btn">
+        Definir Destino Antes
+    </button>
+    <p id="calibration-hint">
+        Para melhor precisão, segure o celular na horizontal e gire em "8" algumas vezes para calibrar a bússola.
+    </p>
+</div>
+
+<!-- ===== CAMERA ===== -->
+<video id="camera-feed" autoplay playsinline muted></video>
+
+<!-- ===== OBJECT DETECTION CANVAS ===== -->
+<canvas id="detection-canvas"></canvas>
+
+<!-- ===== AR UI OVERLAY ===== -->
+<div id="ar-ui">
+    <!-- TOP: Distance + instruction -->
+    <div id="top-bar">
+        <div id="distance-display">
+            <span id="dist-value">--</span><span id="dist-unit"> m</span>
+        </div>
+        <div id="instruction-pill">Calculando rota...</div>
     </div>
 
-    <div id="main-container">
-        <div id="camera-area">
-            <video id="video" autoplay muted playsinline webkit-playsinline></video>
-            <canvas id="landmark-canvas"></canvas>
-            <canvas id="hand-canvas"></canvas>
-            <canvas id="nav-canvas"></canvas>
-
-            <!-- Nav HUD: teal arrow + distance/time pill -->
-            <div id="nav-hud">
-                <div id="nav-arrow-circle">
-                    <svg id="arrow-svg" viewBox="0 0 38 38" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M19 5 L30 32 L19 25 L8 32 Z" fill="white"/>
-                    </svg>
-                </div>
-                <div id="nav-pill">-- m  -- min</div>
-            </div>
-
-            <!-- Street View panel -->
-            <div id="sv-panel">
-                <button id="sv-toggle">🗺 Street View</button>
-                <div id="sv-view"></div>
-                <div id="sv-controls">
-                    <button id="sv-snap">📍 Snap GPS</button>
-                    <button id="sv-calibrate">🧭 Calibrar</button>
-                    <span id="sv-status"></span>
-                </div>
-            </div>
+    <!-- CENTER: Arrow -->
+    <div id="arrow-container">
+        <div id="compass-ring">
+            <!-- SVG arrow sempre apontando para cima, rotacionado via JS -->
+            <svg id="nav-arrow-svg" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <linearGradient id="arrowGrad" x1="40" y1="5" x2="40" y2="75" gradientUnits="userSpaceOnUse">
+                        <stop offset="0%" stop-color="#ffffff"/>
+                        <stop offset="100%" stop-color="rgba(255,255,255,0.7)"/>
+                    </linearGradient>
+                </defs>
+                <!-- Arrow body -->
+                <path d="M40 5 L60 45 L47 40 L47 75 L33 75 L33 40 L20 45 Z"
+                      fill="url(#arrowGrad)"
+                      stroke="rgba(255,255,255,0.3)"
+                      stroke-width="1"/>
+            </svg>
         </div>
-
-        <!-- Bottom sheet with map and navigation bar -->
-        <div id="bottom-sheet">
-            <div id="map"></div>
-            <nav id="bottom-nav">
-                <button class="nav-tab active" id="tab-mapa">
-                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z"/></svg>
-                    Mapa
-                </button>
-                <button class="nav-tab" id="tab-qr">
-                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 11h8V3H3v8zm2-6h4v4H5V5zm8-2v8h8V3h-8zm6 6h-4V5h4v4zM3 21h8v-8H3v8zm2-6h4v4H5v-4zm8 4h2v2h-2zm0-4h2v2h-2zm2 2h2v2h-2zm2-2h2v4h-4v-2h2zm0 4h2v2h-2z"/></svg>
-                    QR Code
-                </button>
-                <button class="nav-tab" id="tab-libras">
-                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 6c0-1.1-.9-2-2-2s-2 .9-2 2h2v1H9V6H7v1H5V6c0-1.1-.9-2-2-2v10c0 2.76 2.24 5 5 5h4c2.76 0 5-2.24 5-5V9h-4V6zm2 8c0 1.65-1.35 3-3 3H8c-1.65 0-3-1.35-3-3V8h2v1h2V8h2v1h2V8h2v6z"/></svg>
-                    Libras
-                </button>
-            </nav>
-        </div>
-
-        <!-- Hidden elements kept for JS compatibility -->
-        <div id="status-panel" style="display:none">
-            <div>Lat: <span id="lat">--</span></div>
-            <div>Lng: <span id="lng">--</span></div>
-            <div>Heading: <span id="heading">--</span>°</div>
-            <div>Dist. POI: <span id="distance">--</span> m</div>
-            <div>Mão: <span id="hand-status">--</span></div>
-        </div>
-        <div id="arrows" style="display:none">↑</div>
-
-        <button id="exit-btn">Sair</button>
-        <div id="status-bar">
-            <span class="status-pill" id="st-gps">GPS...</span>
-            <span class="status-pill" id="st-bus">Bussola...</span>
-        </div>
+        <div id="heading-info">Aguardando bússola...</div>
     </div>
 
-    <!-- MediaPipe Hands (detecta apenas mãos, sem detectar pessoa) -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
-    <!-- Three.js para o cubo 3D -->
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
-    <!-- Google Maps -->
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDHpEBTP49TY3aopjq0wvneYk-pGvoFzYY&libraries=geometry"></script>
+    <!-- BOTTOM: Accuracy -->
+    <div id="bottom-bar">
+        <div id="accuracy-text">GPS: buscando... | Bússola: --</div>
+    </div>
 
-    <script>
-        const video          = document.getElementById('video');
-        const landmarkCanvas = document.getElementById('landmark-canvas');
-        const lmCtx          = landmarkCanvas.getContext('2d');
-        const handCanvas     = document.getElementById('hand-canvas');
+    <!-- MINI MAP (bottom right) -->
+    <div id="mini-map">
+        <iframe id="map-iframe" src="about:blank" loading="lazy"></iframe>
+    </div>
+</div>
 
-        let handsDetector;
-        let threeRenderer, threeScene, threeOrthoCamera, handObject;
-        let map, userMarker;
-        let navCanvas, navCtx, navAnimPhase = 0;
-        let svPanorama = null, svService = null, svOpen = false;
-        let directionsService, directionsRenderer;
-        let lastRoutePos = null, routeTimer = null;
+<!-- ===== DEBUG PANEL ===== -->
+<div id="debug-panel">
+    <div class="dbg-row">
+        <div class="dot dot-warn" id="gps-dot"></div>
+        <span id="gps-dbg">GPS: --</span>
+    </div>
+    <div class="dbg-row">
+        <div class="dot dot-warn" id="compass-dot"></div>
+        <span id="compass-dbg">Bússola: --</span>
+    </div>
+    <div class="dbg-row">
+        <span id="bearing-dbg">Rumo dest: --</span>
+    </div>
+    <div class="dbg-row">
+        <span id="arrow-dbg">Seta: --</span>
+    </div>
+    <div class="dbg-row">
+        <span id="acc-dbg">Precisão: --</span>
+    </div>
+    <div class="dbg-row" style="margin-top:6px; border-top:1px solid rgba(255,255,255,0.1); padding-top:6px;">
+        <span id="obj-dbg">Objetos: --</span>
+    </div>
+</div>
 
-        const pois = [
-            { name: 'Praia de Atalaia', lat: -10.9472, lng: -37.0731 },
-            { name: 'Museu de Sergipe',  lat: -10.9117, lng: -37.0714 },
-            { name: 'Centro Histórico',  lat: -10.9160, lng: -37.0720 }
-        ];
-        let userPosition = { lat: -10.9472, lng: -37.0731 };
-        let heading = 0;
-        let headingOffset = 0; // correcao aplicada pela calibracao de Street View
-        let bearing = 0;
-        let closestPoi = pois[0];
-        let compassActive = false;
-        let routePath = null;            // overview_path da rota calculada
-        let minDistToClosestPoi = Infinity; // atualizado em updateMap
+<!-- ===== CONTROLS ===== -->
+<div id="controls">
+    <button class="btn btn-secondary" id="debug-btn">⚙️</button>
+    <button class="btn btn-secondary" id="calib-btn">🧭 Calibrar</button>
+    <button class="btn btn-primary"   id="set-dest-btn">📍 Destino</button>
+</div>
 
-        // heading efetivo = compass + correcao de calibracao
-        function getHeading() { return (heading + headingOffset + 360) % 360; }
+<!-- ===== DESTINATION MODAL ===== -->
+<div id="dest-modal">
+    <div class="modal-sheet">
+        <div class="modal-handle"></div>
+        <h2>📍 Definir Destino</h2>
+        <label>Latitude</label>
+        <input type="number" id="dest-lat" placeholder="-10.914534" step="0.000001" inputmode="decimal">
+        <label>Longitude</label>
+        <input type="number" id="dest-lon" placeholder="-37.070000" step="0.000001" inputmode="decimal">
+        <p class="modal-hint">
+            Como obter: Abra o Google Maps, segure um ponto no mapa e copie as coordenadas que aparecem.
+        </p>
+        <div class="btn-row">
+            <button class="btn btn-primary" id="confirm-dest-btn" style="flex:1">Confirmar</button>
+            <button class="btn btn-secondary" id="cancel-dest-btn" style="flex:1">Cancelar</button>
+        </div>
+    </div>
+</div>
 
-        // Filtro low-pass para angulos: evita saltos 359->1
-        function suavizarAngulo(atual, novo, fator) {
-            const d = ((novo - atual + 540) % 360) - 180;
-            return (atual + d * fator + 360) % 360;
-        }
+<!-- ===== CALIBRATION OVERLAY ===== -->
+<div id="calib-overlay">
+    <div class="calib-figure">📱</div>
+    <h2>Calibrar Bússola</h2>
+    <p>Segure o celular na horizontal e gire lentamente em forma de "8" por alguns segundos</p>
+    <button class="btn btn-primary" id="calib-done-btn">Pronto</button>
+</div>
 
-        // Haversine sem depender do Maps SDK (usado antes do mapa carregar)
-        function calcDistanciaSimples(a, b) {
-            const R = 6371000, D2R = Math.PI / 180;
-            const dLat = (b.lat - a.lat) * D2R;
-            const dLon = (b.lng - a.lng) * D2R;
-            const aa = Math.sin(dLat / 2) ** 2
-                     + Math.cos(a.lat * D2R) * Math.cos(b.lat * D2R) * Math.sin(dLon / 2) ** 2;
-            return R * 2 * Math.atan2(Math.sqrt(aa), Math.sqrt(1 - aa));
-        }
+<script>
+// ===================================================================
+// ESTADO GLOBAL
+// ===================================================================
+const state = {
+    // GPS
+    gpsReady:     false,
+    currentLat:   0,
+    currentLon:   0,
+    currentAcc:   999,
+    gpsWatchId:   null,
 
-        // ── Câmera ────────────────────────────────────────────────
-        async function initCamera() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        facingMode: { ideal: 'environment' },
-                        width:  { ideal: 1280 },
-                        height: { ideal: 720 }
-                    }
-                });
-                video.srcObject = stream;
-                video.addEventListener('loadedmetadata', syncCanvasSize);
-                window.addEventListener('resize', syncCanvasSize);
-            } catch (err) {
-                alert('Câmera indisponível: ' + err.message);
-            }
-        }
+    // Bússola
+    compassReady: false,
+    rawHeading:   0,   // último valor bruto
+    smoothHeading: 0,  // suavizado por filtro passa-baixa
+    headingHistory: [],
 
-        function syncCanvasSize() {
-            const vw = video.videoWidth  || 640;
-            const vh = video.videoHeight || 480;
-            landmarkCanvas.width  = vw;
-            landmarkCanvas.height = vh;
-        }
+    // Seta (ângulo contínuo para evitar flip 0/360)
+    prevDiff:      0,
+    continuousDiff: 0,
 
-        function syncNavCanvas() {
-            const area = document.getElementById('camera-area');
-            navCanvas.width  = area.clientWidth;
-            navCanvas.height = area.clientHeight;
-        }
+    // Destino
+    destLat: 0,
+    destLon: 0,
 
-        // ── MediaPipe Hands ───────────────────────────────────────
-        // Detecta somente mãos (21 pontos) — não identifica pessoa
-        async function initHandTracking() {
-            document.getElementById('hand-status').textContent = 'Carregando...';
+    // Calculados
+    bearing:  0,  // rumo de currentPos -> destino (0-360)
+    distance: 0,  // metros
 
-            handsDetector = new Hands({
-                locateFile: file =>
-                    `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
-            });
+    // AR ativo
+    arActive: false,
 
-            handsDetector.setOptions({
-                maxNumHands: 1,
-                modelComplexity: 1,
-                minDetectionConfidence: 0.75,
-                minTrackingConfidence:  0.6
-            });
+    // COCO-SSD
+    cocoModel:      null,
+    detectInterval: null,
+};
 
-            handsDetector.onResults(onHandResults);
+// Constante de suavização do filtro passa-baixa (0.1 = mais suave, 0.5 = mais responsivo)
+const SMOOTH_ALPHA = 0.15;
 
-            // aguarda o vídeo estar pronto antes de começar
-            await new Promise(res => {
-                if (video.readyState >= 1) { res(); return; }
-                video.addEventListener('loadedmetadata', res, { once: true });
-            });
+// ===================================================================
+// DOM REFS
+// ===================================================================
+const $ = id => document.getElementById(id);
 
-            document.getElementById('hand-status').textContent = 'Pronto';
-            processHandFrame();
-        }
+const startScreen      = $('start-screen');
+const arUI             = $('ar-ui');
+const cameraFeed       = $('camera-feed');
+const detectionCanvas  = $('detection-canvas');
+const distValue        = $('dist-value');
+const distUnit         = $('dist-unit');
+const instructionPill  = $('instruction-pill');
+const compassRing      = $('compass-ring');
+const navArrowSVG      = $('nav-arrow-svg');
+const headingInfo      = $('heading-info');
+const accuracyText     = $('accuracy-text');
+const mapIframe        = $('map-iframe');
+const debugPanel       = $('debug-panel');
+const calibOverlay     = $('calib-overlay');
 
-        // crossZ > 0 → palma virada para a camera traseira (mao direita).
-        // Se o cubo aparecer ao inverso, troque ">" por "<".
-        function isPalmFacingCamera(lm) {
-            const crossZ = (lm[5].x - lm[0].x) * (lm[17].y - lm[0].y)
-                         - (lm[5].y - lm[0].y) * (lm[17].x - lm[0].x);
-            return crossZ > 0;
-        }
+// ===================================================================
+// CÂMERA
+// ===================================================================
+async function startCamera() {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+                facingMode: { ideal: 'environment' },
+                width:  { ideal: 1920 },
+                height: { ideal: 1080 },
+            },
+            audio: false,
+        });
+        cameraFeed.srcObject = stream;
+        await new Promise(resolve => { cameraFeed.onloadedmetadata = resolve; });
+        resizeCanvas();
+    } catch (err) {
+        console.error('Câmera:', err);
+        alert('Não foi possível acessar a câmera traseira.\n' + err.message);
+    }
+}
 
-        // Eixo pulso->dedo_medio mais horizontal do que vertical (mao deitada)
-        function isPalmFlat(lm) {
-            const dx = Math.abs(lm[9].x - lm[0].x);
-            const dy = Math.abs(lm[9].y - lm[0].y);
-            return dx > dy * 0.7; // angulo < ~55 graus da horizontal
-        }
+function resizeCanvas() {
+    detectionCanvas.width  = window.innerWidth;
+    detectionCanvas.height = window.innerHeight;
+}
 
-        // Callback do MediaPipe — chamado a cada frame processado
-        function onHandResults(results) {
-            lmCtx.clearRect(0, 0, landmarkCanvas.width, landmarkCanvas.height);
+window.addEventListener('resize', resizeCanvas);
 
-            if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) {
-                if (handObject) handObject.visible = false;
-                document.getElementById('hand-status').textContent = 'Não detectada';
+// ===================================================================
+// GPS
+// ===================================================================
+function startGPS() {
+    if (!navigator.geolocation) {
+        setGPSDot('err');
+        $('gps-dbg').textContent = 'GPS: não suportado';
+        return;
+    }
+
+    state.gpsWatchId = navigator.geolocation.watchPosition(
+        onGPSUpdate,
+        onGPSError,
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 1000 }
+    );
+}
+
+function onGPSUpdate(pos) {
+    state.currentLat = pos.coords.latitude;
+    state.currentLon = pos.coords.longitude;
+    state.currentAcc = pos.coords.accuracy;
+    state.gpsReady   = true;
+
+    setGPSDot(state.currentAcc < 30 ? 'ok' : 'warn');
+    $('gps-dbg').textContent = `GPS: ${state.currentLat.toFixed(5)}, ${state.currentLon.toFixed(5)}`;
+    $('acc-dbg').textContent  = `Precisão: ±${Math.round(state.currentAcc)}m`;
+
+    if (hasDestination()) {
+        recalcNavigation();
+    }
+}
+
+function onGPSError(err) {
+    setGPSDot('err');
+    $('gps-dbg').textContent = `GPS: erro (${err.code}) ${err.message}`;
+}
+
+function hasDestination() {
+    return state.destLat !== 0 || state.destLon !== 0;
+}
+
+// ===================================================================
+// BÚSSOLA — DeviceOrientationEvent
+// ===================================================================
+async function startCompass() {
+    // iOS 13+ exige permissão explícita
+    if (
+        typeof DeviceOrientationEvent !== 'undefined' &&
+        typeof DeviceOrientationEvent.requestPermission === 'function'
+    ) {
+        try {
+            const perm = await DeviceOrientationEvent.requestPermission();
+            if (perm !== 'granted') {
+                setCompassDot('err');
+                $('compass-dbg').textContent = 'Bússola: sem permissão (iOS)';
                 return;
             }
-
-            const lm  = results.multiHandLandmarks[0];
-            const vw  = landmarkCanvas.width;
-            const vh  = landmarkCanvas.height;
-            const area = document.getElementById('camera-area');
-            const cw  = area.clientWidth;
-            const ch  = area.clientHeight;
-
-            // Desenha esqueleto da mão no canvas 2D
-            drawHandSkeleton(lm, vw, vh);
-
-            const palmVisible = isPalmFacingCamera(lm) && isPalmFlat(lm);
-
-            // Centro da palma = media entre pulso(0) e bases dos dedos(5,9,13,17)
-            const palmIdx = [0, 5, 9, 13, 17];
-            let px = 0, py = 0;
-            palmIdx.forEach(i => { px += lm[i].x; py += lm[i].y; });
-            px /= palmIdx.length;
-            py /= palmIdx.length;
-
-            if (handObject) {
-                handObject.position.x =  px * cw - cw / 2;
-                handObject.position.y = -(py * ch - ch / 2);
-                handObject.visible = palmVisible;
-            }
-
-            document.getElementById('hand-status').textContent =
-                palmVisible ? 'Palma aberta ✓' : (isPalmFacingCamera(lm) ? 'Inclinada' : 'Dorso');
+        } catch (e) {
+            console.error('Permissão bússola:', e);
         }
+    }
 
-        // Desenha os 21 pontos e conexões da mão
-        const HAND_CONNECTIONS = [
-            [0,1],[1,2],[2,3],[3,4],
-            [0,5],[5,6],[6,7],[7,8],
-            [0,9],[9,10],[10,11],[11,12],
-            [0,13],[13,14],[14,15],[15,16],
-            [0,17],[17,18],[18,19],[19,20],
-            [5,9],[9,13],[13,17]
-        ];
+    // Preferência: deviceorientationabsolute (Android Chrome) → heading absoluto
+    window.addEventListener('deviceorientationabsolute', handleOrientation, true);
+    // Fallback: deviceorientation (iOS usa webkitCompassHeading)
+    window.addEventListener('deviceorientation', handleOrientation, true);
+}
 
-        function drawHandSkeleton(lm, vw, vh) {
-            lmCtx.strokeStyle = 'rgba(0, 255, 200, 0.85)';
-            lmCtx.lineWidth   = 2;
-            HAND_CONNECTIONS.forEach(([a, b]) => {
-                lmCtx.beginPath();
-                lmCtx.moveTo(lm[a].x * vw, lm[a].y * vh);
-                lmCtx.lineTo(lm[b].x * vw, lm[b].y * vh);
-                lmCtx.stroke();
-            });
-            lm.forEach(pt => {
-                lmCtx.beginPath();
-                lmCtx.arc(pt.x * vw, pt.y * vh, 4, 0, Math.PI * 2);
-                lmCtx.fillStyle = '#00ffcc';
-                lmCtx.fill();
-            });
-        }
+function handleOrientation(event) {
+    let heading = null;
 
-        // Loop de envio de frames para o MediaPipe
-        async function processHandFrame() {
-            if (video.readyState >= 2) {
-                await handsDetector.send({ image: video });
-            }
-            requestAnimationFrame(processHandFrame);
-        }
+    // iOS: webkitCompassHeading = graus do norte magnético (0-360, CW)
+    if (event.webkitCompassHeading != null) {
+        heading = event.webkitCompassHeading;
+    }
+    // Android (absolute): alpha = graus do norte, mas sentido anti-horário → inverter
+    else if (event.absolute === true && event.alpha != null) {
+        heading = (360 - event.alpha) % 360;
+    }
+    // Fallback não-absoluto
+    else if (event.alpha != null) {
+        heading = (360 - event.alpha) % 360;
+    }
 
-        // ── Three.js — cubo sobre a mão ───────────────────────────
-        function initThreeOverlay() {
-            const area = document.getElementById('camera-area');
-            const w = area.clientWidth  || window.innerWidth;
-            const h = area.clientHeight || Math.round(window.innerHeight * 0.6);
+    if (heading == null) return;
 
-            threeRenderer = new THREE.WebGLRenderer({ canvas: handCanvas, alpha: true, antialias: true });
-            threeRenderer.setSize(w, h);
-            threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    state.rawHeading = heading;
 
-            threeScene = new THREE.Scene();
-            threeOrthoCamera = new THREE.OrthographicCamera(-w/2, w/2, h/2, -h/2, -500, 500);
+    // Filtro passa-baixa com tratamento do wrap 0/360
+    const diff = angleDiff(heading, state.smoothHeading);
+    state.smoothHeading = (state.smoothHeading + diff * SMOOTH_ALPHA + 360) % 360;
 
-            threeScene.add(new THREE.AmbientLight(0xffffff, 0.6));
-            const dl = new THREE.DirectionalLight(0x00eeff, 1.2);
-            dl.position.set(1, 2, 3);
-            threeScene.add(dl);
+    state.compassReady = true;
+    setCompassDot('ok');
+    $('compass-dbg').textContent = `Bússola: ${state.smoothHeading.toFixed(1)}° (raw: ${heading.toFixed(0)}°)`;
 
-            handObject = new THREE.Mesh(
-                new THREE.BoxGeometry(55, 55, 55),
-                new THREE.MeshPhongMaterial({
-                    color: 0x00ffcc,
-                    transparent: true,
-                    opacity: 0.88,
-                    shininess: 120
-                })
-            );
-            handObject.visible = false;
-            threeScene.add(handObject);
+    if (hasDestination() && state.gpsReady) {
+        updateArrow();
+    }
 
-            (function animate() {
-                requestAnimationFrame(animate);
-                if (handObject.visible) {
-                    handObject.rotation.x += 0.02;
-                    handObject.rotation.y += 0.03;
-                }
-                threeRenderer.render(threeScene, threeOrthoCamera);
-            })();
+    updateStatusBar();
+}
 
-            window.addEventListener('resize', () => {
-                const nw = area.clientWidth  || window.innerWidth;
-                const nh = area.clientHeight || Math.round(window.innerHeight * 0.6);
-                threeRenderer.setSize(nw, nh);
-                threeOrthoCamera.left   = -nw / 2;
-                threeOrthoCamera.right  =  nw / 2;
-                threeOrthoCamera.top    =  nh / 2;
-                threeOrthoCamera.bottom = -nh / 2;
-                threeOrthoCamera.updateProjectionMatrix();
-            });
-        }
+// ===================================================================
+// CÁLCULOS DE NAVEGAÇÃO
+// ===================================================================
 
-        // ── Bussola do dispositivo ────────────────────────────────
-        function initOrientation() {
-            let absoluteSupported = false; // true assim que deviceorientationabsolute responder
+// Diferença entre dois ângulos (-180 a +180)
+function angleDiff(a, b) {
+    let d = a - b;
+    while (d >  180) d -= 360;
+    while (d < -180) d += 360;
+    return d;
+}
 
-            const handler = (e) => {
-                let h = null;
-                let reliable = false;
+// Fórmula de Haversine → distância em metros
+function calcDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371000;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLon / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
 
-                if (e.webkitCompassHeading != null) {
-                    // iOS — sempre norte verdadeiro
-                    h = e.webkitCompassHeading;
-                    reliable = true;
-                } else if (e.alpha != null && e.absolute) {
-                    // Android com sensor absoluto (mais confiavel)
-                    h = (360 - e.alpha + 360) % 360;
-                    reliable = true;
-                    absoluteSupported = true;
-                } else if (e.alpha != null && !absoluteSupported) {
-                    // Fallback relativo: aceita apenas se o sensor absoluto nunca respondeu.
-                    // Alpha relativo nao aponta para o norte — usado so como ultimo recurso.
-                    h = (360 - e.alpha + 360) % 360;
-                }
+// Rumo (bearing) de ponto1 → ponto2, em graus (0-360, 0 = Norte)
+function calcBearing(lat1, lon1, lat2, lon2) {
+    const dLon  = (lon2 - lon1) * Math.PI / 180;
+    const lat1R = lat1 * Math.PI / 180;
+    const lat2R = lat2 * Math.PI / 180;
+    const y = Math.sin(dLon) * Math.cos(lat2R);
+    const x = Math.cos(lat1R) * Math.sin(lat2R) -
+               Math.sin(lat1R) * Math.cos(lat2R) * Math.cos(dLon);
+    return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+}
 
-                if (h === null) return;
+function recalcNavigation() {
+    if (!state.gpsReady) return;
 
-                heading = suavizarAngulo(heading, h, 0.2);
+    state.distance = calcDistance(
+        state.currentLat, state.currentLon,
+        state.destLat,    state.destLon
+    );
+    state.bearing = calcBearing(
+        state.currentLat, state.currentLon,
+        state.destLat,    state.destLon
+    );
 
-                if (reliable) {
-                    // So marca compassActive para leituras confiaveis; assim o GPS heading
-                    // continua sendo usado como fallback em dispositivos sem sensor absoluto.
-                    compassActive = true;
-                }
+    // Atualizar distância no topo
+    if (state.distance >= 1000) {
+        distValue.textContent = (state.distance / 1000).toFixed(1);
+        distUnit.textContent  = ' km';
+    } else {
+        distValue.textContent = Math.round(state.distance);
+        distUnit.textContent  = ' m';
+    }
 
-                document.getElementById('st-bus').textContent = reliable ? 'Bussola OK' : 'Bussola~';
-                document.getElementById('st-bus').classList.toggle('ok', reliable);
+    $('bearing-dbg').textContent = `Rumo dest: ${state.bearing.toFixed(1)}°`;
 
-                // Atualiza apenas exibicao de heading e seta — evita recalcular POIs/rota a 60fps
-                atualizarDirecao();
-            };
+    updateArrow();
+    updateMiniMap();
+}
 
-            if (typeof DeviceOrientationEvent !== 'undefined' &&
-                typeof DeviceOrientationEvent.requestPermission === 'function') {
-                DeviceOrientationEvent.requestPermission()
-                    .then(s => { if (s === 'granted') window.addEventListener('deviceorientation', handler); })
-                    .catch(() => {});
-            } else {
-                window.addEventListener('deviceorientationabsolute', handler, true);
-                window.addEventListener('deviceorientation', handler);
-            }
-        }
+// ===================================================================
+// SETA — CORAÇÃO DO SISTEMA
+// ===================================================================
+function updateArrow() {
+    if (!state.compassReady) {
+        headingInfo.textContent = 'Aguardando bússola...';
+        return;
+    }
+    if (!hasDestination()) {
+        headingInfo.textContent = 'Defina um destino';
+        return;
+    }
 
-        // Atualiza heading display, seta e Street View sem recalcular POIs/rota
-        function atualizarDirecao() {
-            document.getElementById('heading').textContent = Math.round(getHeading());
-            if (bearing !== 0) {
-                const rawOffset = (bearing - getHeading() + 360) % 360;
-                const dir = Math.round(rawOffset / 45) % 8;
-                document.getElementById('arrows').textContent =
-                    ['↑','↗','→','↘','↓','↙','←','↖'][dir];
-                const arrowSvg = document.getElementById('arrow-svg');
-                if (arrowSvg) arrowSvg.style.transform = `rotate(${rawOffset}deg)`;
-            }
-            updateStreetView();
-        }
+    // Diferença angular entre o rumo ao destino e para onde o celular aponta
+    // Positivo = destino está à DIREITA de onde você aponta
+    // Negativo = destino está à ESQUERDA
+    const rawDiff = angleDiff(state.bearing, state.smoothHeading);
 
-        // ── GPS ───────────────────────────────────────────────────
-        function initGPS() {
-            if (!navigator.geolocation) { simulateGPS(); return; }
-            navigator.geolocation.watchPosition(
-                pos => {
-                    userPosition.lat = pos.coords.latitude;
-                    userPosition.lng = pos.coords.longitude;
+    // Ângulo contínuo: evita a transição longa quando cruza 0/360
+    const delta = angleDiff(rawDiff, state.prevDiff);
+    state.continuousDiff += delta;
+    state.prevDiff = rawDiff;
 
-                    // Fusao GPS+bussola: intensidade cresce com a velocidade
-                    const speed   = pos.coords.speed;
-                    const gpsHead = pos.coords.heading;
-                    if (gpsHead != null && !isNaN(gpsHead) && speed != null) {
-                        if (speed > 0.8) {
-                            // Caminhada rapida — GPS e muito mais confiavel que o magnetometro
-                            heading = suavizarAngulo(heading, gpsHead, 0.6);
-                        } else if (speed > 0.15) {
-                            // Passo lento — GPS ainda util
-                            heading = suavizarAngulo(heading, gpsHead, 0.35);
-                        } else if (!compassActive) {
-                            // Quase parado sem bussola — nudge fraco pelo GPS
-                            heading = suavizarAngulo(heading, gpsHead, 0.1);
-                        }
-                    } else if (!compassActive && routePath &&
-                               typeof google !== 'undefined' && google.maps) {
-                        // Sem movimento e sem bussola: usa bearing da rota como referencia suave
-                        heading = suavizarAngulo(heading, getEffectiveBearing(), 0.05);
-                    }
+    // Rotacionar o SVG da seta
+    navArrowSVG.style.transform = `rotate(${state.continuousDiff}deg)`;
 
-                    document.getElementById('st-gps').textContent = 'GPS OK';
-                    document.getElementById('st-gps').classList.add('ok');
-                    updateMap();
+    const abs = Math.abs(rawDiff);
 
-                    // Recalcula rota apenas ao mover >10 m (debounce 1.2 s)
-                    const moveu = !lastRoutePos
-                        || calcDistanciaSimples(userPosition, lastRoutePos) > 10;
-                    if (moveu) {
-                        clearTimeout(routeTimer);
-                        routeTimer = setTimeout(() => {
-                            lastRoutePos = { ...userPosition };
-                            if (closestPoi) calcularRota(userPosition, closestPoi);
-                        }, 1200);
-                    }
-                },
-                () => simulateGPS(),
-                { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
-            );
-        }
+    // Instrução e cor
+    let instruction, stateClass;
 
-        function simulateGPS() {
-            setInterval(() => {
-                userPosition.lat += (Math.random() - 0.5) * 0.001;
-                userPosition.lng += (Math.random() - 0.5) * 0.001;
-                updateMap();
-            }, 5000);
-        }
+    if (abs < 12) {
+        instruction = 'Continue em frente';
+        stateClass  = 'on-track';
+    } else if (abs >= 12 && abs < 35) {
+        instruction = rawDiff > 0 ? 'Vire levemente à direita' : 'Vire levemente à esquerda';
+        stateClass  = '';
+    } else if (abs >= 35 && abs < 100) {
+        instruction = rawDiff > 0 ? 'Vire à direita' : 'Vire à esquerda';
+        stateClass  = '';
+    } else if (abs >= 100 && abs < 150) {
+        instruction = rawDiff > 0 ? 'Retorne pela direita' : 'Retorne pela esquerda';
+        stateClass  = 'behind';
+    } else {
+        instruction = 'Volte — destino está atrás';
+        stateClass  = 'behind';
+    }
 
-        // ── Google Maps ───────────────────────────────────────────
-        function initMap() {
-            map = new google.maps.Map(document.getElementById('map'), {
-                center: userPosition,
-                zoom: 18,
-                styles: [{ featureType: 'poi', stylers: [{ visibility: 'off' }] }]
-            });
+    // Chegou!
+    if (state.distance < 10) {
+        instruction = 'Você chegou ao destino!';
+        stateClass  = 'on-track';
+    }
 
-            directionsService  = new google.maps.DirectionsService();
-            directionsRenderer = new google.maps.DirectionsRenderer({
-                map,
-                suppressMarkers: true,
-                polylineOptions: { strokeColor: '#4BD4D2', strokeWeight: 5 }
-            });
+    instructionPill.textContent = instruction;
+    instructionPill.className   = 'active'; // reset
+    if (stateClass) instructionPill.classList.add(stateClass);
 
-            userMarker = new google.maps.Marker({
-                position: userPosition,
-                map,
-                icon: {
-                    path: google.maps.SymbolPath.CIRCLE,
-                    scale: 8,
-                    fillColor: '#4285F4', fillOpacity: 1,
-                    strokeColor: '#fff',  strokeWeight: 2
-                }
-            });
-            pois.forEach(poi => new google.maps.Marker({ position: poi, map, title: poi.name }));
-            updateMap();
-        }
+    compassRing.className = 'compass-ring-base'; // reset
+    if (stateClass === 'on-track') compassRing.classList.add('on-track');
+    else if (stateClass === 'behind') compassRing.classList.add('behind');
 
-        function calcularRota(inicio, destino) {
-            if (!directionsService || !directionsRenderer) return;
-            directionsService.route({
-                origin:      { lat: inicio.lat,  lng: inicio.lng },
-                destination: { lat: destino.lat, lng: destino.lng },
-                travelMode:  google.maps.TravelMode.WALKING
-            }, (response, status) => {
-                if (status !== 'OK') return;
-                directionsRenderer.setDirections(response);
-                const leg = response.routes[0].legs[0];
-                routePath = response.routes[0].overview_path; // salva para bearing efetivo
-                document.getElementById('distance').textContent =
-                    leg.distance.text + ' (~' + leg.duration.text + ')';
-                const navPill = document.getElementById('nav-pill');
-                if (navPill) navPill.textContent = leg.distance.text + '  ' + leg.duration.text;
-            });
-        }
+    // Debug
+    $('arrow-dbg').textContent = `Seta: ${rawDiff.toFixed(1)}° (cont: ${state.continuousDiff.toFixed(0)}°)`;
 
-        function updateMap() {
-            if (!userMarker || !map) return;
-            userMarker.setPosition(userPosition);
-            map.setCenter(userPosition);
+    // Info abaixo da seta
+    headingInfo.textContent = `${rawDiff > 0 ? '+' : ''}${rawDiff.toFixed(0)}° | Rumo ${state.bearing.toFixed(0)}° | ${Math.round(state.distance)}m`;
+}
 
-            let minDist = Infinity;
-            pois.forEach(poi => {
-                const d = google.maps.geometry.spherical.computeDistanceBetween(
-                    new google.maps.LatLng(userPosition.lat, userPosition.lng),
-                    new google.maps.LatLng(poi.lat, poi.lng)
+function updateStatusBar() {
+    const gps  = state.gpsReady    ? `±${Math.round(state.currentAcc)}m` : 'buscando...';
+    const comp = state.compassReady ? `${state.smoothHeading.toFixed(0)}°` : 'buscando...';
+    accuracyText.textContent = `GPS: ${gps}  |  Bússola: ${comp}`;
+}
+
+function updateMiniMap() {
+    if (!hasDestination()) return;
+    const src = `https://maps.google.com/maps?q=${state.destLat},${state.destLon}&z=16&output=embed`;
+    if (mapIframe.src !== src) mapIframe.src = src;
+}
+
+// ===================================================================
+// DETECÇÃO DE OBJETOS (COCO-SSD)
+// ===================================================================
+async function initObjectDetection() {
+    try {
+        state.cocoModel = await cocoSsd.load({ base: 'lite_mobilenet_v2' });
+        console.log('COCO-SSD carregado');
+        scheduleDetection();
+    } catch (e) {
+        console.error('COCO-SSD:', e);
+    }
+}
+
+function scheduleDetection() {
+    // ~4-5fps para não travar — suficiente para obstáculos
+    state.detectInterval = setInterval(runDetection, 220);
+}
+
+async function runDetection() {
+    if (!state.cocoModel || !state.arActive) return;
+
+    const video = cameraFeed;
+    if (video.readyState !== 4) return;
+
+    const ctx = detectionCanvas.getContext('2d');
+    ctx.clearRect(0, 0, detectionCanvas.width, detectionCanvas.height);
+
+    // Desenhar frame atual no canvas para passar ao modelo
+    const offscreen = document.createElement('canvas');
+    offscreen.width  = video.videoWidth  || detectionCanvas.width;
+    offscreen.height = video.videoHeight || detectionCanvas.height;
+    const offCtx = offscreen.getContext('2d');
+    offCtx.drawImage(video, 0, 0);
+
+    let predictions = [];
+    try {
+        predictions = await state.cocoModel.detect(offscreen);
+    } catch (_) { return; }
+
+    // Escala do vídeo para tela
+    const scaleX = detectionCanvas.width  / offscreen.width;
+    const scaleY = detectionCanvas.height / offscreen.height;
+
+    predictions.forEach(pred => {
+        const [x, y, w, h] = pred.bbox;
+        const sx = x * scaleX, sy = y * scaleY;
+        const sw = w * scaleX, sh = h * scaleY;
+
+        // Bounding box
+        ctx.strokeStyle = 'rgba(0, 229, 255, 0.85)';
+        ctx.lineWidth   = 2;
+        ctx.strokeRect(sx, sy, sw, sh);
+
+        // Label background
+        const label = `${pred.class}  ${(pred.score * 100).toFixed(0)}%`;
+        ctx.font = 'bold 13px Arial';
+        const labelW = ctx.measureText(label).width + 10;
+        ctx.fillStyle = 'rgba(0, 20, 60, 0.72)';
+        ctx.fillRect(sx, sy - 22, labelW, 22);
+
+        ctx.fillStyle = '#00E5FF';
+        ctx.fillText(label, sx + 5, sy - 6);
+    });
+
+    $('obj-dbg').textContent = predictions.length
+        ? `Objetos: ${predictions.map(p => p.class).join(', ')}`
+        : 'Objetos: nenhum';
+}
+
+// ===================================================================
+// HELPERS DE UI
+// ===================================================================
+function setGPSDot(status) {
+    const dot = $('gps-dot');
+    dot.className = status === 'ok' ? 'dot dot-ok' : status === 'warn' ? 'dot dot-warn' : 'dot dot-err';
+}
+
+function setCompassDot(status) {
+    const dot = $('compass-dot');
+    dot.className = status === 'ok' ? 'dot dot-ok' : 'dot dot-err';
+}
+
+function setDestination(lat, lon) {
+    state.destLat = lat;
+    state.destLon = lon;
+    console.log(`Destino: ${lat}, ${lon}`);
+    if (state.gpsReady) recalcNavigation();
+    else instructionPill.textContent = 'Destino definido — aguardando GPS...';
+}
+
+// ===================================================================
+// LOOP DE ATUALIZAÇÃO (backup: garante re-cálculo mesmo sem eventos)
+// ===================================================================
+setInterval(() => {
+    if (state.arActive && state.gpsReady && hasDestination()) {
+        recalcNavigation();
+    }
+    updateStatusBar();
+}, 2000);
+
+// ===================================================================
+// EVENT LISTENERS
+// ===================================================================
+
+// Iniciar navegação
+$('start-btn').addEventListener('click', async () => {
+    startScreen.style.display = 'none';
+    await startCamera();
+    startGPS();
+    await startCompass();
+    arUI.classList.add('active');
+    state.arActive = true;
+    initObjectDetection();
+
+    // Destino padrão de teste: 80m ao norte (substituído quando usuário define)
+    if (!hasDestination()) {
+        const waitGPS = setInterval(() => {
+            if (state.gpsReady) {
+                clearInterval(waitGPS);
+                setDestination(
+                    state.currentLat + 0.00072, // ~80m norte
+                    state.currentLon
                 );
-                if (d < minDist) { minDist = d; closestPoi = poi; }
-            });
-            minDistToClosestPoi = minDist;
-
-            document.getElementById('lat').textContent     = userPosition.lat.toFixed(5);
-            document.getElementById('lng').textContent     = userPosition.lng.toFixed(5);
-            document.getElementById('heading').textContent = Math.round(getHeading());
-            // Distancia linha reta enquanto a rota de caminhada nao chegar
-            if (!lastRoutePos) {
-                document.getElementById('distance').textContent = Math.round(minDist) + ' m';
-                const navPill = document.getElementById('nav-pill');
-                if (navPill) navPill.textContent = Math.round(minDist) + ' m';
             }
+        }, 500);
+    }
+});
 
-            bearing = google.maps.geometry.spherical.computeHeading(
-                new google.maps.LatLng(userPosition.lat, userPosition.lng),
-                new google.maps.LatLng(closestPoi.lat, closestPoi.lng)
-            );
-            const rawOffset = (bearing - getHeading() + 360) % 360;
-            const dir = Math.round(rawOffset / 45) % 8;
-            document.getElementById('arrows').textContent =
-                ['↑','↗','→','↘','↓','↙','←','↖'][dir];
-            const arrowSvg = document.getElementById('arrow-svg');
-            if (arrowSvg) arrowSvg.style.transform = `rotate(${rawOffset}deg)`;
+// Botão "Definir destino" na tela inicial
+$('set-dest-start-btn').addEventListener('click', () => {
+    $('dest-modal').classList.add('open');
+});
 
-            updateStreetView();
-        }
+// Botão "Destino" na tela de AR
+$('set-dest-btn').addEventListener('click', () => {
+    $('dest-modal').classList.add('open');
+});
 
-        // ── Street View ───────────────────────────────────────────
-        function initStreetView() {
-            svService = new google.maps.StreetViewService();
-            svPanorama = new google.maps.StreetViewPanorama(
-                document.getElementById('sv-view'),
-                {
-                    position: userPosition,
-                    pov: { heading: getHeading(), pitch: 0 },
-                    disableDefaultUI: true,
-                    linksControl: false,
-                    panControl: false,
-                    zoomControl: false,
-                    fullscreenControl: false,
-                    motionTracking: false,
-                    motionTrackingControl: false,
-                    clickToGo: false
-                }
-            );
+// Confirmar destino
+$('confirm-dest-btn').addEventListener('click', () => {
+    const lat = parseFloat($('dest-lat').value);
+    const lon = parseFloat($('dest-lon').value);
 
-            document.getElementById('sv-toggle').addEventListener('click', () => {
-                svOpen = !svOpen;
-                document.getElementById('sv-panel').classList.toggle('open', svOpen);
-                if (svOpen) updateStreetView();
-            });
+    if (isNaN(lat) || isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+        alert('Coordenadas inválidas.\nLatitude: -90 a 90 | Longitude: -180 a 180');
+        return;
+    }
 
-            document.getElementById('sv-snap').addEventListener('click', snapToStreetView);
-            document.getElementById('sv-calibrate').addEventListener('click', calibrateHeadingFromLinks);
-        }
+    setDestination(lat, lon);
+    $('dest-modal').classList.remove('open');
+});
 
-        function updateStreetView() {
-            if (!svPanorama || !svOpen) return;
-            svPanorama.setPosition(userPosition);
-            svPanorama.setPov({ heading: getHeading(), pitch: 0 });
-        }
+// Cancelar modal
+$('cancel-dest-btn').addEventListener('click', () => {
+    $('dest-modal').classList.remove('open');
+});
 
-        // Snaps GPS position to the nearest outdoor Street View panorama
-        async function snapToStreetView() {
-            if (!svService) return;
-            const el = document.getElementById('sv-status');
-            el.textContent = '...';
-            try {
-                const res = await svService.getPanorama({
-                    location: userPosition,
-                    radius: 80,
-                    source: google.maps.StreetViewSource.OUTDOOR
-                });
-                const loc = res.data.location.latLng;
-                userPosition.lat = loc.lat();
-                userPosition.lng = loc.lng();
-                updateMap();
-                updateStreetView();
-                el.textContent = 'snap ok';
-            } catch (_) {
-                el.textContent = 'sem sv';
-            }
-        }
+// Debug toggle
+$('debug-btn').addEventListener('click', () => {
+    debugPanel.classList.toggle('visible');
+});
 
-        // Finds the road direction (panorama link) closest to the current compass
-        // heading and applies the difference as a heading correction offset.
-        async function calibrateHeadingFromLinks() {
-            if (!svService) return;
-            const el = document.getElementById('sv-status');
-            el.textContent = '...';
-            try {
-                const res = await svService.getPanorama({
-                    location: userPosition,
-                    radius: 80,
-                    source: google.maps.StreetViewSource.OUTDOOR
-                });
-                const links = res.data.links || [];
-                if (!links.length) { el.textContent = 'sem links'; return; }
+// Calibração da bússola
+$('calib-btn').addEventListener('click', () => {
+    calibOverlay.classList.add('visible');
+});
 
-                // Build candidate road directions (each link + its opposite)
-                const candidates = [];
-                links.forEach(l => {
-                    candidates.push(l.heading);
-                    candidates.push((l.heading + 180) % 360);
-                });
+$('calib-done-btn').addEventListener('click', () => {
+    calibOverlay.classList.remove('visible');
+});
 
-                // Pick candidate closest to raw device heading
-                let best = null, bestDiff = Infinity;
-                candidates.forEach(h => {
-                    const diff = Math.abs(((h - heading + 540) % 360) - 180);
-                    if (diff < bestDiff) { bestDiff = diff; best = h; }
-                });
+// Também do botão na tela inicial
+$('start-btn').parentElement;
 
-                if (best !== null && bestDiff < 45) {
-                    headingOffset = ((best - heading) + 540) % 360 - 180;
-                    updateStreetView();
-                    el.textContent = (headingOffset >= 0 ? '+' : '') + Math.round(headingOffset) + '°';
-                } else {
-                    headingOffset = 0;
-                    el.textContent = 'ok';
-                }
-            } catch (_) {
-                el.textContent = 'erro';
-            }
-        }
-
-        // ── Overlay de navegacao AR ───────────────────────────────
-        function initNavOverlay() {
-            navCanvas = document.getElementById('nav-canvas');
-            navCtx    = navCanvas.getContext('2d');
-            syncNavCanvas();
-            window.addEventListener('resize', syncNavCanvas);
-            navLoop();
-        }
-
-        // Bearing usando o segmento da rota mais proximo; cai de volta para linha reta
-        function getEffectiveBearing() {
-            if (!routePath || routePath.length < 2) return bearing;
-            const userLL = new google.maps.LatLng(userPosition.lat, userPosition.lng);
-            let best = 0, bestD = Infinity;
-            routePath.forEach((pt, i) => {
-                const d = google.maps.geometry.spherical.computeDistanceBetween(userLL, pt);
-                if (d < bestD) { bestD = d; best = i; }
-            });
-            const nxt = Math.min(best + 1, routePath.length - 1);
-            if (nxt === best) return bearing;
-            return google.maps.geometry.spherical.computeHeading(routePath[best], routePath[nxt]);
-        }
-
-        function drawNavGuide() {
-            if (!navCanvas) return;
-            const w = navCanvas.width, h = navCanvas.height;
-            navCtx.clearRect(0, 0, w, h);
-
-            if (minDistToClosestPoi < 25) { drawArrival(w, h); return; }
-
-            const effB   = getEffectiveBearing();
-            const offset = ((effB - getHeading() + 540) % 360) - 180;
-
-            if (Math.abs(offset) > 110) { drawWrongWay(w, h); return; }
-
-            drawTrail(offset, w, h);
-        }
-
-        function drawTrail(offset, w, h) {
-            const clamp = Math.max(-75, Math.min(75, offset));
-            const vpX   = w / 2 + (clamp / 75) * w * 0.36;
-            const vpY   = h * 0.42;
-            const midX  = w / 2, bY = h * 0.57;
-            const bLx   = w * 0.18, bRx = w * 0.82;
-
-            // Controle de curvatura
-            const lean = (offset / 180) * w * 0.15;
-            const cpX  = midX + lean, cpY = h * 0.63;
-            const cpLx = bLx * 0.52 + vpX * 0.48 + lean * 0.55;
-            const cpRx = bRx * 0.52 + vpX * 0.48 + lean * 0.55;
-            const cpEY = h * 0.63;
-
-            // Preenchimento com gradiente
-            navCtx.save();
-            navCtx.beginPath();
-            navCtx.moveTo(bLx, bY);
-            navCtx.quadraticCurveTo(cpLx, cpEY, vpX - 1, vpY);
-            navCtx.lineTo(vpX + 1, vpY);
-            navCtx.quadraticCurveTo(cpRx, cpEY, bRx, bY);
-            navCtx.closePath();
-            const gf = navCtx.createLinearGradient(0, vpY, 0, bY);
-            gf.addColorStop(0,    'rgba(0,140,255,0.00)');
-            gf.addColorStop(0.25, 'rgba(0,140,255,0.08)');
-            gf.addColorStop(1,    'rgba(0,140,255,0.28)');
-            navCtx.fillStyle = gf;
-            navCtx.fill();
-            navCtx.restore();
-
-            // Bordas curvas com brilho
-            const drawEdge = (x0, cpEX) => {
-                navCtx.save();
-                navCtx.shadowColor = '#0088ff'; navCtx.shadowBlur = 22;
-                navCtx.strokeStyle = 'rgba(70,175,255,0.82)'; navCtx.lineWidth = 2;
-                navCtx.beginPath();
-                navCtx.moveTo(x0, bY);
-                navCtx.quadraticCurveTo(cpEX, cpEY, vpX, vpY);
-                navCtx.stroke();
-                navCtx.restore();
-            };
-            drawEdge(bLx, cpLx);
-            drawEdge(bRx, cpRx);
-
-            // Linha central tracejada
-            navCtx.save();
-            navCtx.setLineDash([5, 13]);
-            navCtx.shadowColor = '#00aaff'; navCtx.shadowBlur = 9;
-            navCtx.strokeStyle = 'rgba(120,210,255,0.48)'; navCtx.lineWidth = 1.5;
-            navCtx.beginPath();
-            navCtx.moveTo(midX, bY);
-            navCtx.quadraticCurveTo(cpX, cpY, vpX, vpY);
-            navCtx.stroke();
-            navCtx.setLineDash([]);
-            navCtx.restore();
-
-            // Chevrons animados sobre a bezier central
-            // t=0: proximo ao usuario (base), t=1: ponto de fuga (longe)
-            navAnimPhase = (navAnimPhase + 0.013) % 1;
-            for (let i = 0; i < 4; i++) {
-                const t  = (navAnimPhase + i / 4) % 1;
-                const mt = 1 - t;
-                // Ponto na bezier P0=(midX,bY) P1=(cpX,cpY) P2=(vpX,vpY)
-                const cx = mt * mt * midX + 2 * mt * t * cpX + t * t * vpX;
-                const cy = mt * mt * bY   + 2 * mt * t * cpY + t * t * vpY;
-                // Tangente para rotacionar o chevron com a curva
-                const tdx = 2 * mt * (cpX - midX) + 2 * t * (vpX - cpX);
-                const tdy = 2 * mt * (cpY - bY)   + 2 * t * (vpY - cpY);
-                const size = 5 + 14 * mt;
-                navCtx.save();
-                navCtx.globalAlpha = 0.2 + 0.72 * mt;
-                navCtx.translate(cx, cy);
-                navCtx.rotate(Math.atan2(tdy, tdx) + Math.PI / 2);
-                navCtx.shadowColor = '#00aaff'; navCtx.shadowBlur = size * 1.1;
-                navCtx.fillStyle   = 'rgba(80,200,255,0.92)';
-                navCtx.beginPath();
-                navCtx.moveTo(0, -size);
-                navCtx.lineTo( size * 0.65,  size * 0.35);
-                navCtx.lineTo(0,             size * 0.05);
-                navCtx.lineTo(-size * 0.65,  size * 0.35);
-                navCtx.closePath();
-                navCtx.fill();
-                navCtx.restore();
-            }
-        }
-
-        function drawWrongWay(w, h) {
-            const pw = 188, ph = 36, px = (w - pw) / 2, py = 52;
-            navCtx.save();
-            navCtx.fillStyle = 'rgba(0,0,0,0.62)';
-            rrect(navCtx, px, py, pw, ph, 18);
-            navCtx.fill();
-            navCtx.font = 'bold 15px Arial'; navCtx.textAlign = 'center';
-            navCtx.fillStyle = '#ff5050';
-            navCtx.shadowColor = '#ff2200'; navCtx.shadowBlur = 12;
-            navCtx.fillText('↩  Vire-se', w / 2, py + ph / 2 + 5.5);
-            navCtx.restore();
-        }
-
-        function drawArrival(w, h) {
-            const pulse = 0.72 + 0.28 * Math.sin(Date.now() * 0.004);
-            navCtx.save();
-            navCtx.shadowColor = '#00ff88'; navCtx.shadowBlur = 35;
-            navCtx.strokeStyle = `rgba(0,255,136,${0.65 * pulse})`;
-            navCtx.lineWidth   = 3;
-            navCtx.beginPath();
-            navCtx.arc(w / 2, h * 0.44, 42 * pulse, 0, Math.PI * 2);
-            navCtx.stroke();
-            navCtx.font = 'bold 18px Arial'; navCtx.textAlign = 'center';
-            navCtx.fillStyle = 'rgba(0,255,136,0.95)';
-            navCtx.shadowBlur = 14;
-            navCtx.fillText('Voce chegou!', w / 2, h * 0.44 + 7);
-            navCtx.restore();
-        }
-
-        function rrect(ctx, x, y, rw, rh, r) {
-            ctx.beginPath();
-            ctx.moveTo(x + r, y);
-            ctx.lineTo(x + rw - r, y);
-            ctx.quadraticCurveTo(x + rw, y,      x + rw, y + r);
-            ctx.lineTo(x + rw, y + rh - r);
-            ctx.quadraticCurveTo(x + rw, y + rh, x + rw - r, y + rh);
-            ctx.lineTo(x + r,  y + rh);
-            ctx.quadraticCurveTo(x, y + rh,      x, y + rh - r);
-            ctx.lineTo(x, y + r);
-            ctx.quadraticCurveTo(x, y,            x + r, y);
-            ctx.closePath();
-        }
-
-        function navLoop() {
-            drawNavGuide();
-            requestAnimationFrame(navLoop);
-        }
-
-        // ── Inicialização ─────────────────────────────────────────
-        document.getElementById('start-btn').addEventListener('click', () => {
-            document.getElementById('initial-screen').style.display = 'none';
-            document.getElementById('main-container').style.display = 'block';
-            initCamera();
-            initThreeOverlay();
-            initOrientation();
-            initGPS();
-            initMap();
-            initStreetView();
-            initNavOverlay();
-            initHandTracking();
-        });
-
-        document.getElementById('exit-btn').addEventListener('click', () => {
-            if (video.srcObject) video.srcObject.getTracks().forEach(t => t.stop());
-            location.reload();
-        });
-
-        // ── Tab: Mapa (toggle map visibility) ─────────────────────
-        document.getElementById('tab-mapa').addEventListener('click', () => {
-            const sheet  = document.getElementById('bottom-sheet');
-            const tab    = document.getElementById('tab-mapa');
-            const mapOff = sheet.classList.toggle('map-off');
-            tab.classList.toggle('active', !mapOff);
-            document.documentElement.style.setProperty('--sheet-h', mapOff ? '56px' : '42%');
-        });
-
-        // ── Tab: Libras (toggle VLibras widget) ────────────────────
-        document.getElementById('tab-libras').addEventListener('click', () => {
-            const widget = document.getElementById('vlibras-widget');
-            const tab    = document.getElementById('tab-libras');
-            const show   = widget.style.display === 'none';
-            widget.style.display = show ? 'block' : 'none';
-            tab.classList.toggle('active', show);
-            if (show) {
-                setTimeout(() => {
-                    const btn = widget.querySelector('[vw-access-button]');
-                    if (btn) btn.click();
-                }, 80);
-            }
-        });
-    </script>
-
-    <!-- VLibras: inicializado oculto, ativado pelo botão Libras -->
-    <div vw class="enabled" id="vlibras-widget" style="display:none">
-        <div vw-access-button class="active"></div>
-        <div vw-plugin-wrapper>
-            <div class="vw-plugin-top-wrapper"></div>
-        </div>
-    </div>
-    <script src="https://vlibras.gov.br/app/vlibras-plugin.js"></script>
-    <script>
-        new window.VLibras.Widget('https://vlibras.gov.br/app');
-    </script>
+console.log('AR Live Navigation — pronto');
+console.log('Algoritmo: bearing(GPS) - smoothedHeading(bússola) = arrowAngle');
+</script>
 </body>
 </html>

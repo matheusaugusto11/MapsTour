@@ -30,3 +30,4 @@ config/secrets.json
 
 src.zip
 src2.zip
+.claude
